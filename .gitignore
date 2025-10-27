@@ -1,0 +1,198 @@
+# ================================================
+# 🐍 Python + 🟩 Node.js + 💻 VSCode + 🪟 Windows
+# Combined .gitignore Template
+# ================================================
+
+# ------------------------------
+# 🐍 Python
+# ------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Type checker
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# ------------------------------
+# 🟩 Node.js / JavaScript
+# ------------------------------
+# Dependencies
+node_modules/
+bower_components/
+
+# Build output
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor
+.idea/
+.vscode/
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Next.js / Vite / React cache
+.next/
+.cache/
+.vite/
+
+# ------------------------------
+# 💻 VSCode
+# ------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Local History
+.history/
+*.code-workspace
+
+# ------------------------------
+# 🪟 Windows
+# ------------------------------
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin
+$RECYCLE.BIN/
+
+# System file
+*.lnk
+
+# ------------------------------
+# 🧰 Optional (if using Docker)
+# ------------------------------
+.docker/
+Dockerfile
+docker-compose*.yml
+
+
+logs
+*.log
+dev-debug.log
+# Dependency directories
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# ------------------------------
+# 😎AI Junks
+# ------------------------------
+.cursor/
+.taskmaster/
+GEMINI.md
+
+
+# ------------------------------
+# 😎User Specific
+# ------------------------------
+*.md
+!README.md
+
+# ------------------------------
+# 😎Project Specific
+# ------------------------------
+youtube/
+config.json
+app.pid
+backend/api_test.py
+tests/
+.github/
+test_translate.py
+# Task files
+# tasks.json
+# tasks/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

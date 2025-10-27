@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Translator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-bg: #374151;
+            --secondary-bg: #f7fafc;
+            --surface-color: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-light: #e2e8f0;
+            --header-text: #ffffff;
+            --header-text-secondary: #cbd5e1;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            background: var(--secondary-bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--primary-bg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            z-index: 10;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            opacity: 0.8;
+        }
+
+        .header > * {
+            position: relative;
+            z-index: 2;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        select {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            min-width: 120px;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+
+        select:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: white;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+
+        select option {
+            background: white;
+            color: var(--text-primary);
+        }
+
+        #translate-button {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #translate-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(6, 182, 212, 0.4);
+        }
+
+        #translate-button:disabled {
+            background: #94a3b8;
+            box-shadow: none;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #06b6d4;
+            cursor: pointer;
+        }
+
+        .translator-container {
+            display: flex;
+            flex: 1;
+            padding: 24px;
+            gap: 24px;
+            min-height: 0;
+        }
+
+        .input-section, .output-section {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-label {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .text-area {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 16px;
+            line-height: 1.7;
+            background: var(--surface-color);
+            box-shadow: var(--shadow-sm);
+            box-sizing: border-box;
+            overflow-y: auto;
+            transition: all 0.2s ease;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .text-area:hover:not(:disabled) {
+            border-color: #06b6d4;
+            box-shadow: var(--shadow-md);
+        }
+
+        .text-area:focus {
+            outline: none;
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        .text-area:disabled {
+            background: var(--secondary-bg);
+            border-color: #cbd5e1;
+        }
+
+        #input-text {
+            position: relative;
+        }
+
+        .char-counter {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: var(--surface-color);
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .status-indicator {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            z-index: 10;
+            box-shadow: var(--shadow-md);
+            backdrop-filter: blur(10px);
+            transition: opacity 0.3s ease-out;
+        }
+
+        .status-indicator.loading {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .progress-modal {
+            background: var(--surface-color);
+            padding: 32px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+            min-width: 350px;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-modal h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: var(--border-color);
+            border-radius: var(--radius-sm);
+            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #06b6d4 0%, #0891b2 50%, #38bdf8 100%);
+            border-radius: var(--radius-sm);
+            transition: width 0.4s ease-out;
+            position: relative;
+        }
+
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-text {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            font-weight: 500;
+        }
+
+        /* Scrollbar styling */
+        .text-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .text-area::-webkit-scrollbar-track {
+            background: var(--secondary-bg);
+            border-radius: 4px;
+        }
+
+        .text-area::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .text-area::-webkit-scrollbar-thumb:hover {
+            background: #cbd5e1;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 16px 20px;
+                gap: 12px;
+            }
+
+            .control-group {
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px 16px;
+            }
+
+            .translator-container {
+                padding: 16px;
+                gap: 16px;
+                flex-direction: column;
+            }
+
+            .text-area {
+                padding: 16px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="control-group">
+            <select id="provider-select">
+                <option value="gemini">Gemini</option>
+                <option value="openai">OpenAI</option>
+            </select>
+            <select id="model-select">
+                <!-- 선택된 Provider에 맞는 모델 목록이 동적으로 채워집니다 -->
+            </select>
+            <select id="target-language-select">
+                <!-- 언어 옵션들이 JavaScript로 동적으로 채워집니다 -->
+            </select>
+        </div>
+
+        <button id="translate-button">번역하기</button>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="timestamp-checkbox">
+            <label for="timestamp-checkbox">타임스탬프 표시</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="streaming-checkbox">
+            <label for="streaming-checkbox">실시간 번역 (스트리밍)</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="notification-checkbox" checked>
+            <label for="notification-checkbox">Windows 알림</label>
+        </div>
+    </div>
+
+    <!-- 진행 상황 모달 -->
+    <div id="progress-container" class="progress-container">
+        <div class="progress-modal">
+            <div class="spinner"></div>
+            <div style="margin: 16px 0; font-size: 16px; font-weight: 500; color: #333;">
+                번역 작업 진행중...
+            </div>
+            <div class="progress-bar">
+                <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            </div>
+            <div id="progress-text" class="progress-text">준비중...</div>
+        </div>
+    </div>
+
+    <div class="translator-container">
+        <div class="input-section">
+            <div class="section-label">
+                📝 원본 텍스트
+            </div>
+            <div id="input-text" class="text-area" contenteditable="true"></div>
+            <div id="char-counter" class="char-counter">글자: 0</div>
+            <div id="status-indicator" class="status-indicator">
+                <div class="spinner" style="display: none;"></div>
+                <span id="status-text"></span>
+            </div>
+        </div>
+        <div class="output-section">
+            <div class="section-label">
+                🔤 번역 결과
+            </div>
+            <div id="output-text" class="text-area"></div>
+        </div>
+    </div>
+
+    <script src="translator_ui.js"></script>
+
+</body>
+
+    </html>

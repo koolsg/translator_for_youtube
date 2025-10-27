@@ -1,0 +1,15 @@
+3[project]
+name = "my-translator-for-youtube"
+version = "0.1.0"
+description = "Translation API Server for YouTube"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "pydantic",
+    "openai",
+    "google-generativeai",
+    "plyer",
+    "python-dotenv"
+]

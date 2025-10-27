@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pydantic
+openai
+google-generativeai
+plyer
+python-dotenv
+youtube-transcript-api
