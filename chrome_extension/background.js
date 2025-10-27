@@ -55,6 +55,19 @@ chrome.runtime.onMessage.addListener((request) => {
     return true;
 });
 
+// YouTube 동영상 페이지로 SPA 네비게이션할 때 content.js를 주입합니다.
+// (manifest content_scripts와 병행하여 모든 네비게이션 시나리오 커버)
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+    // URL이 YouTube 동영상 페이지인지 확인합니다.
+    if (details.url && details.url.includes("youtube.com/watch")) {
+        // content.js를 해당 탭에 주입합니다. (중복 실행은 content.js의 플래그로 방지됨)
+        chrome.scripting.executeScript({
+            target: { tabId: details.tabId },
+            files: ["content.js"]
+        });
+    }
+});
+
 // 탭이 닫혔을 때 세션 스토리지에서 ID를 제거하여 정리합니다.
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     const { translatorTabId } = await chrome.storage.session.get('translatorTabId');
@@ -62,17 +75,5 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
         // 닫힌 탭이 번역기 탭이면 스토리지에서 ID를 제거합니다.
         chrome.storage.session.remove('translatorTabId');
         console.log(`Translator tab with ID ${tabId} closed. Removing from session storage.`);
-    }
-});
-
-// YouTube 동영상 페이지로 이동할 때 content.js를 주입합니다.
-chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
-    // URL이 YouTube 동영상 페이지인지 확인합니다.
-    if (details.url && details.url.includes("youtube.com/watch")) {
-        // content.js를 해당 탭에 주입합니다.
-        chrome.scripting.executeScript({
-            target: { tabId: details.tabId },
-            files: ["content.js"]
-        });
     }
 });

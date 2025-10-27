@@ -8,6 +8,11 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [{
+    "matches": ["*://www.youtube.com/watch*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
   "web_accessible_resources": [
     {
       "resources": ["icon.svg", "translator_ui.html", "translator_ui.js"],
