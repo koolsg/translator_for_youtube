@@ -5,6 +5,9 @@ param(
     [switch]$Force  # Force restart if server is already running
 )
 
+# Set console encoding to UTF-8 for proper Unicode display
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 # Get script directory
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $venvPython = Join-Path $scriptDir ".venv\Scripts\python.exe"
@@ -94,17 +97,17 @@ function Start-ServerProcess {
 # Main execution
 try {
     Write-Host "Translation Server Startup"
-    Write-Host "=" * 40
+    Write-Host ("=" * 40)
 
     Test-Environment
-    Write-Host "✓ Environment check passed"
+    Write-Host "Environment check passed"
 
     Test-ExistingServer
-    Write-Host "✓ Server availability check passed"
+    Write-Host "Server availability check passed"
 
     Start-ServerProcess
-    Write-Host "=" * 40
-    Write-Host "Ready! Use stop_server.ps1 to stop."
+    Write-Host ("=" * 40)
+    Write-Host "Ready! Use stop_server.bat to stop."
 
 } catch {
     Write-Error "Startup failed: $($_.Exception.Message)"
