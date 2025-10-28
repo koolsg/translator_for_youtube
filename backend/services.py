@@ -508,11 +508,17 @@ class GeminiTranslator:
                 genai.configure(api_key=selected_key)
                 model = genai.GenerativeModel(model_name)
 
-                # 번역 프롬프트 구성
-                prompt = f"Translate the following text to {target_language}: \n\n{text}"
+                # 번역 프롬프트 구성 (AI 소개 문구 방지)
+                target_lang_name = get_language_name(target_language)
+                prompt = f"""Translate the following text to {target_lang_name} ({target_language}).
+
+IMPORTANT: Output ONLY the translated text. Do NOT add any introductions, explanations, or additional text. Do NOT include phrases like "The translation is:" or similar.
+
+Text to translate:
+{text}"""
                 response = model.generate_content(prompt)
 
-                return response.text
+                return response.text.strip()
 
             except Exception as e:
                 # 마지막 시도가 아니면 재시도
@@ -540,10 +546,18 @@ class GeminiTranslator:
         selected_key = random.choice(api_keys)
         genai.configure(api_key=selected_key)
         model = genai.GenerativeModel(model_name)
-        prompt = f"Translate the following text to {target_language}: \n\n{text}"
-        
+
+        # 번역 프롬프트 구성 (스트리밍에서도 소개 문구 방지)
+        target_lang_name = get_language_name(target_language)
+        prompt = f"""Translate the following text to {target_lang_name} ({target_language}).
+
+IMPORTANT: Output ONLY the translated text. Do NOT add any introductions, explanations, or additional text. Do NOT include phrases like "The translation is:" or similar.
+
+Text to translate:
+{text}"""
+
         response_stream = await model.generate_content_async(prompt, stream=True)
-        
+
         async for chunk in response_stream:
             # Check for prompt_feedback to avoid yielding empty or non-text chunks
             if not chunk.prompt_feedback:
@@ -637,7 +651,7 @@ class OpenAITranslator:
         """OpenAI API를 사용하여 스트리밍 방식으로 텍스트를 번역합니다."""
         api_key = self.validate_api_key()
         client = OpenAI(api_key=api_key)
-        
+
         response_stream = await client.chat.completions.create(
             model=model_name,
             messages=[
@@ -646,7 +660,7 @@ class OpenAITranslator:
             ],
             stream=True
         )
-        
+
         async for chunk in response_stream:
             content = chunk.choices[0].delta.content
             if content is not None:

@@ -1,4 +1,43 @@
 /**
+ * AI 모델이 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 반환합니다.
+ */
+function cleanTranslatedText(text) {
+    if (!text) return text;
+
+    // 일반적인 AI 소개 문구 패턴들
+    const introPatterns = [
+        /^다음은 해당 텍스트의 한국어 번역입니다\.\s*/i,
+        /^다음은 .* 번역입니다\.\s*/i,
+        /^한국어 번역[:：]/i,
+        /^영어 번역[:：]/i,
+        /^번역[:：]/i,
+        /^Here's the .* translation[:：]/i,
+        /^The translation is[:：]/i
+    ];
+
+    // 분리자 패턴 (종종 --- 로 구분되기도 함)
+    const separatorPattern = /^[-—]{3,}\s*/m;
+
+    let cleaned = text.trim();
+
+    // 소개 문구 제거
+    for (const pattern of introPatterns) {
+        cleaned = cleaned.replace(pattern, '');
+    }
+
+    // --- 이후 내용이 실제 번역인 경우 추출
+    const separatorMatch = cleaned.match(separatorPattern);
+    if (separatorMatch) {
+        const parts = cleaned.split(separatorMatch[0]);
+        if (parts.length > 1 && parts[1].trim()) {
+            cleaned = parts[1].trim();
+        }
+    }
+
+    return cleaned;
+}
+
+/**
  * 입력된 텍스트의 글자 수를 세어 화면에 표시합니다.
  */
 function updateCharCounter() {
@@ -328,7 +367,11 @@ function handleRegularTranslation() {
     .then(data => {
         updateProgressBar(90);
         showProgress('결과 표시중...');
-        outputDiv.textContent = data.translated_text;
+
+        // AI가 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 추출
+        let cleanText = cleanTranslatedText(data.translated_text);
+
+        outputDiv.textContent = cleanText;
         localStorage.setItem('lastUsedProvider', selectedProvider);
         localStorage.setItem('lastUsedModel', selectedModel);
         updateProgressBar(100);
@@ -407,6 +450,7 @@ async function handleStreamTranslation() {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let fullResponse = '';
 
         while (true) {
             const { done, value } = await reader.read();
@@ -414,7 +458,14 @@ async function handleStreamTranslation() {
                 break;
             }
             const chunk = decoder.decode(value, { stream: true });
-            outputDiv.textContent += chunk;
+            fullResponse += chunk;
+            outputDiv.textContent = fullResponse; // 실시간 표시
+        }
+
+        // 스트리밍 완료 후 AI 소개 문구 정리
+        const cleanText = cleanTranslatedText(fullResponse);
+        if (cleanText !== fullResponse) {
+            outputDiv.textContent = cleanText; // 정제된 텍스트로 교체
         }
 
         updateStatus('스트리밍 완료', 'success');
