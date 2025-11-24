@@ -1,4 +1,4 @@
-3[project]
+[project]
 name = "my-translator-for-youtube"
 version = "0.1.0"
 description = "Translation API Server for YouTube"
@@ -12,4 +12,10 @@ dependencies = [
     "google-generativeai",
     "plyer",
     "python-dotenv"
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.407",
+    "ruff>=0.14.6",
 ]

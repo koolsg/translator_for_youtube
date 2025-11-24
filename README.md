@@ -130,7 +130,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 cd ..
 
 # 서버 실행 스크립트
-.\start_server.ps1
+.\start_server.bat
 ```
 
 성공적으로 실행되면 `http://localhost:5000`에서 API 서버가 시작됩니다.

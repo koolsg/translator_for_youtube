@@ -2,12 +2,14 @@
 
 import json
 import logging
+import math
 import os
 import random
+import re
 import sys
 from typing import Dict, List, Optional, Any, cast
 
-from exceptions import APIKeyError
+from exceptions import APIKeyError, RateLimitError
 
 # AI 서비스 임포트 (상단에서 선언하여 보안 및 성능 개선)
 try:
@@ -16,6 +18,13 @@ try:
 except ImportError:
     _HAS_GENAI = False
     genai = None
+
+try:
+    from google.api_core import exceptions as google_api_exceptions
+    _HAS_GOOGLE_API_EXCEPTIONS = True
+except ImportError:
+    google_api_exceptions = None
+    _HAS_GOOGLE_API_EXCEPTIONS = False
 
 try:
     from openai import OpenAI
@@ -231,6 +240,77 @@ SUPPORTED_LANGUAGES = {
     'cwy': '크리어'
 }
 
+def _parse_retry_after_seconds(message: str) -> Optional[int]:
+    """Gemini 오류 메시지에서 재시도 대기 시간을 파싱합니다."""
+    retry_patterns = [
+        r"retry in\s+(\d+(?:\.\d+)?)s",
+        r"retry_delay[^\d]*(\d+)",
+        r"retry-after[^\d]*(\d+)"
+    ]
+
+    lowered = message.lower()
+    for pattern in retry_patterns:
+        match = re.search(pattern, lowered)
+        if match:
+            try:
+                seconds_str = match.group(1)
+                seconds_value = float(seconds_str)
+                return max(1, int(math.ceil(seconds_value)))
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
+def _extract_retry_after_seconds(error: Exception) -> Optional[int]:
+    """예외 객체에서 재시도 대기 시간을 추출합니다."""
+    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(error, google_api_exceptions.ResourceExhausted):
+        retry_delay = getattr(error, "retry_delay", None)
+        if retry_delay:
+            try:
+                seconds_value = retry_delay.total_seconds() if hasattr(retry_delay, "total_seconds") else float(retry_delay)
+                return max(1, int(math.ceil(seconds_value)))
+            except (TypeError, ValueError):
+                pass
+
+        retry_after_attr = getattr(error, "retry_after", None)
+        if retry_after_attr:
+            try:
+                seconds_value = retry_after_attr.total_seconds() if hasattr(retry_after_attr, "total_seconds") else float(retry_after_attr)
+                return max(1, int(math.ceil(seconds_value)))
+            except (TypeError, ValueError):
+                pass
+
+    return _parse_retry_after_seconds(str(error))
+
+
+def _is_gemini_rate_limit_error(error: Exception) -> bool:
+    """Gemini API 호출시 발생한 예외가 할당량 초과인지 확인합니다."""
+    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(error, google_api_exceptions.ResourceExhausted):
+        return True
+
+    message = str(error).lower()
+    keywords = (
+        'quota exceeded',
+        'rate limit',
+        'too many requests',
+        '429',
+        'resource exhausted'
+    )
+    return any(keyword in message for keyword in keywords)
+
+
+def _build_gemini_rate_limit_message(retry_after: Optional[int]) -> str:
+    """사용자에게 표시할 Gemini 할당량 초과 안내 문구를 생성합니다."""
+    base_message = (
+        "Gemini API 무료 사용량이 초과되어 번역을 진행할 수 없습니다. "
+        "잠시 후 다시 시도하거나 Google AI Studio에서 요금제와 사용량을 확인해주세요."
+    )
+
+    if retry_after:
+        return f"{base_message} (약 {retry_after}초 후 재시도 가능)"
+    return base_message
+
+
 # --- 로깅 설정 ---
 def setup_logging(debug: bool = False) -> None:
     """애플리케이션의 로깅을 설정합니다."""
@@ -242,8 +322,8 @@ def setup_logging(debug: bool = False) -> None:
         level=log_level,
         format=log_format,
         handlers=[
-            logging.StreamHandler(sys.stdout), # 콘솔 출력
-            logging.FileHandler('translation_server.log', encoding='utf-8') # 파일 출력
+            logging.StreamHandler(sys.stdout),  # 콘솔 출력
+            logging.FileHandler('translation_server.log', encoding='utf-8')  # 파일 출력
         ]
     )
 
@@ -280,7 +360,7 @@ def is_retryable_error(error: Exception) -> bool:
     Returns:
         bool: 재시도 가능 여부
     """
-    from .exceptions import NetworkError, APIError, RateLimitError, ServiceUnavailableError
+    from exceptions import NetworkError, APIError, RateLimitError, ServiceUnavailableError
 
     # 재시도 가능한 예외 타입들
     retryable_types = (
@@ -521,6 +601,26 @@ Text to translate:
                 return response.text.strip()
 
             except Exception as e:
+                if _is_gemini_rate_limit_error(e):
+                    retry_after_seconds = _extract_retry_after_seconds(e)
+                    user_message = _build_gemini_rate_limit_message(retry_after_seconds)
+                    self.logger.warning(
+                        "Gemini 할당량 초과 감지: model=%s retry_after=%s error=%s",
+                        model_name,
+                        retry_after_seconds,
+                        e
+                    )
+                    raise RateLimitError(
+                        user_message,
+                        provider='gemini',
+                        retry_after=retry_after_seconds,
+                        details={
+                            'retry_after_seconds': retry_after_seconds,
+                            'model': model_name,
+                            'original_error': str(e)
+                        }
+                    ) from e
+
                 # 마지막 시도가 아니면 재시도
                 if attempt < MAX_RETRIES - 1:
                     if is_retryable_error(e):
@@ -556,12 +656,35 @@ IMPORTANT: Output ONLY the translated text. Do NOT add any introductions, explan
 Text to translate:
 {text}"""
 
-        response_stream = await model.generate_content_async(prompt, stream=True)
+        try:
+            response_stream = await model.generate_content_async(prompt, stream=True)
 
-        async for chunk in response_stream:
-            # Check for prompt_feedback to avoid yielding empty or non-text chunks
-            if not chunk.prompt_feedback:
-                yield chunk.text
+            async for chunk in response_stream:
+                # Check for prompt_feedback to avoid yielding empty or non-text chunks
+                if not chunk.prompt_feedback:
+                    yield chunk.text
+
+        except Exception as e:
+            if _is_gemini_rate_limit_error(e):
+                retry_after_seconds = _extract_retry_after_seconds(e)
+                user_message = _build_gemini_rate_limit_message(retry_after_seconds)
+                self.logger.warning(
+                    "Gemini 스트리밍 할당량 초과 감지: model=%s retry_after=%s error=%s",
+                    model_name,
+                    retry_after_seconds,
+                    e
+                )
+                raise RateLimitError(
+                    user_message,
+                    provider='gemini',
+                    retry_after=retry_after_seconds,
+                    details={
+                        'retry_after_seconds': retry_after_seconds,
+                        'model': model_name,
+                        'original_error': str(e)
+                    }
+                ) from e
+            raise
 
 
 class OpenAITranslator:

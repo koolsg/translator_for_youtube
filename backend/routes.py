@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
+from exceptions import RateLimitError
 from models import TranslationRequest, TranslationResponse
 from notification_service import NotificationService
 from services import DEFAULT_PROVIDER, TranslationService, ConfigManager
@@ -80,6 +81,15 @@ def translate_text(request: TranslationRequest):
         # 번역된 결과를 클라이언트에게 반환합니다.
         return TranslationResponse(translated_text=translated_text)
 
+    except RateLimitError as e:
+        error_msg = str(e)
+        logging.getLogger(__name__).warning(f"Gemini 할당량 초과: {error_msg}")
+        detail = {
+            "message": error_msg,
+            "retry_after_seconds": getattr(e, "retry_after", None),
+            "provider": getattr(e, "provider", None)
+        }
+        raise HTTPException(status_code=429, detail=detail)
     except ValueError as e:
         # 유효성 검사 오류 (잘못된 API 키, 지원하지 않는 언어 등)는 400 오류로 반환
         error_msg = str(e)
@@ -115,6 +125,15 @@ async def translate_stream(request: TranslationRequest):
 
         return StreamingResponse(notification_wrapper(), media_type="text/plain")
 
+    except RateLimitError as e:
+        error_msg = str(e)
+        logging.getLogger(__name__).warning(f"Gemini 스트리밍 할당량 초과: {error_msg}")
+        detail = {
+            "message": error_msg,
+            "retry_after_seconds": getattr(e, "retry_after", None),
+            "provider": getattr(e, "provider", None)
+        }
+        raise HTTPException(status_code=429, detail=detail)
     except ValueError as e:
         error_msg = str(e)
         logging.getLogger(__name__).warning(f"스트리밍 유효성 검사 오류: {error_msg}")

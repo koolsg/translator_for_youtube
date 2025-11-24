@@ -167,6 +167,7 @@ dev-debug.log
 # ------------------------------
 .cursor/
 .taskmaster/
+.\serena
 GEMINI.md
 
 
