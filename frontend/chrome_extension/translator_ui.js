@@ -154,6 +154,35 @@ async function loadModelsForProvider(provider, selectedModelName = null) {
     }
 }
 
+async function parseErrorResponse(response) {
+    const text = await response.text();
+    return parseErrorText(text);
+}
+
+function parseErrorText(text) {
+    if (!text) return {};
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        return { detail: text };
+    }
+}
+
+function formatRateLimitMessage(detail) {
+    const safeDetail = detail && typeof detail === 'object' ? detail : {};
+    const baseMessage = safeDetail.message || 'Gemini API 무료 사용량이 초과되어 번역을 진행할 수 없습니다. 잠시 후 다시 시도해주세요.';
+    const retryAfterSeconds = safeDetail.retry_after_seconds;
+
+    if (retryAfterSeconds) {
+        const rounded = Math.max(1, Math.ceil(retryAfterSeconds));
+        if (!baseMessage.includes('초')) {
+            return `${baseMessage} (약 ${rounded}초 후 재시도 가능)`;
+        }
+    }
+
+    return baseMessage;
+}
+
 /**
  * 지원되는 언어 목록을 동적으로 생성하여 드롭다운에 추가합니다.
  */
@@ -198,12 +227,13 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
         const urlHTML = `<div style="font-size: 14px; color: #555; margin-bottom: 1em;">${fullUrl}</div>`;
 
         // HTML 특수 문자를 이스케이프하여 순수 텍스트로 처리되도록 합니다.
-        const transcriptContent = data.transcript.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const transcriptContent = data.transcript.split('\n').map(line => `<div>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`).join('');
 
         inputDiv.innerHTML = titleHTML + urlHTML + transcriptContent;
 
         updateStatus('자막 로드 완료', 'success');
         updateCharCounter();
+        window.refreshScrollUnits?.();
     } catch (error) {
         console.error('자막 로딩 오류:', error);
         const titleHTML = `<div style="font-size: 20px; font-weight: 500;">${videoTitle.trim()} - YouTube</div>`;
@@ -355,11 +385,24 @@ function handleRegularTranslation() {
         showProgress('서버 응답 처리중...');
 
         if (!response.ok) {
-            return response.json().then(err => {
-                const errorMessage = err.detail || '알 수 없는 서버 오류';
+            return parseErrorResponse(response).then(errBody => {
+                const detail = errBody.detail ?? errBody;
+
+                if (response.status === 429) {
+                    const message = formatRateLimitMessage(detail);
+                    const rateLimitError = new Error(message);
+                    rateLimitError.name = 'RateLimitError';
+                    rateLimitError.retryAfterSeconds = detail && detail.retry_after_seconds;
+                    throw rateLimitError;
+                }
+
+                const errorMessage = typeof detail === 'string'
+                    ? detail
+                    : (detail && detail.message) || '알 수 없는 서버 오류';
+
                 if (response.status === 400) throw new Error(`입력 오류: ${errorMessage}`);
-                else if (response.status === 500) throw new Error(`서버 내부 오류: ${errorMessage}`);
-                else throw new Error(`HTTP ${response.status}: ${errorMessage}`);
+                if (response.status === 500) throw new Error(`서버 내부 오류: ${errorMessage}`);
+                throw new Error(`HTTP ${response.status}: ${errorMessage}`);
             });
         }
         return response.json();
@@ -371,7 +414,8 @@ function handleRegularTranslation() {
         // AI가 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 추출
         let cleanText = cleanTranslatedText(data.translated_text);
 
-        outputDiv.textContent = cleanText;
+        outputDiv.innerHTML = cleanText.split('\n').map(line => `<div>${line}</div>`).join('');
+        window.refreshScrollUnits?.();
         localStorage.setItem('lastUsedProvider', selectedProvider);
         localStorage.setItem('lastUsedModel', selectedModel);
         updateProgressBar(100);
@@ -388,6 +432,7 @@ function handleRegularTranslation() {
         let userFriendlyMessage = '알 수 없는 오류가 발생했습니다. 다시 시도해주세요.';
         if (error.name === 'AbortError') userFriendlyMessage = '요청 시간이 초과되었습니다. 인터넷 연결을 확인해주세요.';
         else if (error.name === 'TypeError' && error.message.includes('fetch')) userFriendlyMessage = '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.';
+        else if (error.name === 'RateLimitError') userFriendlyMessage = errorMessage;
         else if (errorMessage.includes('입력 오류')) userFriendlyMessage = errorMessage;
         else if (errorMessage.includes('서버 내부 오류')) userFriendlyMessage = '서버에서 번역을 처리하던 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
         outputDiv.textContent = userFriendlyMessage;
@@ -445,7 +490,21 @@ async function handleStreamTranslation() {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(JSON.parse(errorText).detail || '스트리밍 연결에 실패했습니다.');
+            const parsed = parseErrorText(errorText);
+            const detail = parsed.detail ?? parsed;
+
+            if (response.status === 429) {
+                const message = formatRateLimitMessage(detail);
+                const rateLimitError = new Error(message);
+                rateLimitError.name = 'RateLimitError';
+                rateLimitError.retryAfterSeconds = detail && detail.retry_after_seconds;
+                throw rateLimitError;
+            }
+
+            const message = typeof detail === 'string'
+                ? detail
+                : (detail && detail.message) || '스트리밍 연결에 실패했습니다.';
+            throw new Error(message);
         }
 
         const reader = response.body.getReader();
@@ -459,14 +518,16 @@ async function handleStreamTranslation() {
             }
             const chunk = decoder.decode(value, { stream: true });
             fullResponse += chunk;
-            outputDiv.textContent = fullResponse; // 실시간 표시
+            outputDiv.innerHTML = fullResponse.split('\n').map(line => `<div>${line}</div>`).join(''); // 실시간 표시
         }
 
         // 스트리밍 완료 후 AI 소개 문구 정리
         const cleanText = cleanTranslatedText(fullResponse);
         if (cleanText !== fullResponse) {
-            outputDiv.textContent = cleanText; // 정제된 텍스트로 교체
+            outputDiv.innerHTML = cleanText.split('\n').map(line => `<div>${line}</div>`).join(''); // 정제된 텍스트로 교체
         }
+
+        window.refreshScrollUnits?.();
 
         updateStatus('스트리밍 완료', 'success');
         if (showNotification) {
@@ -479,8 +540,11 @@ async function handleStreamTranslation() {
             outputDiv.textContent = '번역이 사용자에 의해 취소되었습니다.';
             updateStatus('번역 취소됨', 'warning');
         } else {
-            outputDiv.textContent = `오류: ${error.message}`;
-            updateStatus(`오류: ${error.message}`, 'error');
+            const message = error.name === 'RateLimitError'
+                ? error.message
+                : `오류: ${error.message}`;
+            outputDiv.textContent = message;
+            updateStatus(message, 'error');
         }
     } finally {
         // 작업이 끝나면 이벤트 리스너를 제거하여 메모리 누수 방지
@@ -489,3 +553,225 @@ async function handleStreamTranslation() {
         inputDiv.setAttribute('contenteditable', 'true');
     }
 }
+
+// 스크롤 동기화 상태 관리
+let isScrollSyncEnabled = false;
+let isScrollingProgrammatically = false;
+
+// 의미 단위로 텍스트 나누기 (줄바꿈 기준)
+function splitTextIntoSemanticUnits(text) {
+    const lines = text.split('\n');
+    const units = [];
+    let totalLength = 0;
+
+    for (const line of lines) {
+        const start = totalLength;
+        const length = line.length;
+        units.push({
+            text: line,
+            start,
+            end: start + length,
+            length
+        });
+        totalLength += length + 1; // 줄바꿈 문자 가정
+    }
+
+    return units;
+}
+
+function calculateSyncScrollPosition(sourceUnits, targetUnits, sourceScrollTop, sourceScrollHeight, sourceClientHeight, targetScrollHeight, targetClientHeight) {
+    if (!sourceUnits.length || !targetUnits.length) return 0;
+
+    const currentSourceUnitIndex = findCurrentUnitIndex(sourceUnits, sourceScrollTop, sourceScrollHeight, sourceClientHeight);
+
+    // 대응하는 타겟 유닛 찾기 (1:1 매핑 가정)
+    const targetUnitIndex = Math.min(currentSourceUnitIndex, targetUnits.length - 1);
+    const targetUnit = targetUnits[targetUnitIndex];
+
+    // 타겟 유닛의 상대적 위치를 기반으로 스크롤 위치 계산
+    const totalTargetLength = targetUnits[targetUnits.length - 1].end;
+    if (totalTargetLength === 0) return 0;
+
+    const targetUnitRatio = targetUnit.start / totalTargetLength;
+    const targetScrollRange = targetScrollHeight - targetClientHeight;
+    const targetScrollTop = targetScrollRange > 0 ? targetScrollRange * targetUnitRatio : 0;
+
+    return Math.max(0, targetScrollTop);
+}
+
+// 디바운스 함수
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// 스크롤 인디케이터 업데이트 함수
+function updateSyncIndicator(state) {
+    const indicator = document.getElementById('sync-indicator');
+    indicator.className = 'sync-indicator';
+
+    if (state === 'active') {
+        indicator.classList.add('active');
+    } else if (state === 'syncing') {
+        indicator.classList.add('active', 'syncing');
+    } else {
+        // inactive - remove all classes, keep base class
+    }
+}
+
+function findCurrentUnitIndex(units, scrollTop, scrollHeight, clientHeight) {
+    if (!units.length) return -1;
+
+    const scrollRange = scrollHeight - clientHeight;
+    const scrollRatio = scrollRange > 0 ? scrollTop / scrollRange : 0;
+    const scrolledLength = (units[units.length - 1].end) * scrollRatio;
+
+    for (let i = 0; i < units.length; i++) {
+        if (units[i].start <= scrolledLength && units[i].end >= scrolledLength) {
+            return i;
+        }
+    }
+
+    return units.length - 1;
+}
+
+function performScrollSync(sourceElement, targetElement, sourceUnits, targetUnits) {
+    if (!isScrollSyncEnabled || isScrollingProgrammatically) return;
+
+    updateSyncIndicator('syncing');
+
+    isScrollingProgrammatically = true;
+
+    const sourceScrollTop = sourceElement.scrollTop;
+    const sourceScrollHeight = sourceElement.scrollHeight;
+    const sourceClientHeight = sourceElement.clientHeight;
+    const targetScrollHeight = targetElement.scrollHeight;
+    const targetClientHeight = targetElement.clientHeight;
+
+    const targetScrollTop = calculateSyncScrollPosition(
+        sourceUnits,
+        targetUnits,
+        sourceScrollTop,
+        sourceScrollHeight,
+        sourceClientHeight,
+        targetScrollHeight,
+        targetClientHeight
+    );
+
+    targetElement.scrollTop = targetScrollTop;
+
+    const currentSourceUnitIndex = findCurrentUnitIndex(sourceUnits, sourceScrollTop, sourceScrollHeight, sourceClientHeight);
+    if (currentSourceUnitIndex !== -1) {
+        const targetUnitIndex = Math.min(currentSourceUnitIndex, targetUnits.length - 1);
+        const targetLineElement = targetElement.children[targetUnitIndex];
+
+        if (targetLineElement) {
+            const previouslyHighlighted = targetElement.querySelector('.highlighted-line');
+            if (previouslyHighlighted) {
+                previouslyHighlighted.classList.remove('highlighted-line');
+            }
+            targetLineElement.classList.add('highlighted-line');
+        }
+    }
+
+    setTimeout(() => {
+        isScrollingProgrammatically = false;
+        if (isScrollSyncEnabled) {
+            updateSyncIndicator('active');
+        }
+    }, 100);
+}
+
+const debouncedSyncScroll = debounce((sourceElement, targetElement, sourceUnits, targetUnits) => {
+    performScrollSync(sourceElement, targetElement, sourceUnits, targetUnits);
+}, 50);
+
+// 스크롤 동기화 설정 함수
+function setupScrollSynchronization() {
+    const inputText = document.getElementById('input-text');
+    const outputText = document.getElementById('output-text');
+    const scrollSyncCheckbox = document.getElementById('scroll-sync-checkbox');
+
+    let inputUnits = [];
+    let outputUnits = [];
+
+    // 초기 text units 생성
+    function updateTextUnits() {
+        inputUnits = splitTextIntoSemanticUnits(inputText.textContent || '');
+        outputUnits = splitTextIntoSemanticUnits(outputText.textContent || '');
+    }
+
+    // 텍스트 변경 시 유닛 업데이트 (디바운스 적용)
+    const updateUnitsDebounced = debounce(updateTextUnits, 300);
+
+    inputText.addEventListener('input', updateUnitsDebounced);
+    inputText.addEventListener('keyup', updateUnitsDebounced);
+
+    // 초기 업데이트
+    updateTextUnits();
+
+    function refreshScrollUnits(options = {}) {
+        updateTextUnits();
+
+        if (!isScrollSyncEnabled) return;
+
+        const direction = options.direction === 'outputToInput' ? 'outputToInput' : 'inputToOutput';
+
+        if (direction === 'inputToOutput') {
+            performScrollSync(inputText, outputText, inputUnits, outputUnits);
+        } else {
+            performScrollSync(outputText, inputText, outputUnits, inputUnits);
+        }
+    }
+
+    window.refreshScrollUnits = refreshScrollUnits;
+
+    // 스크롤 이벤트 리스너
+    function onInputScroll() {
+        if (!isScrollSyncEnabled) return;
+        debouncedSyncScroll(inputText, outputText, inputUnits, outputUnits);
+    }
+
+    function onOutputScroll() {
+        if (!isScrollSyncEnabled) return;
+        debouncedSyncScroll(outputText, inputText, outputUnits, inputUnits);
+    }
+
+    inputText.addEventListener('scroll', onInputScroll);
+    outputText.addEventListener('scroll', onOutputScroll);
+
+    // 토글 이벤트
+    scrollSyncCheckbox.addEventListener('change', (e) => {
+        isScrollSyncEnabled = e.target.checked;
+        localStorage.setItem('scroll_sync_enabled', isScrollSyncEnabled);
+
+        if (isScrollSyncEnabled) {
+            updateTextUnits(); // 토글 시점에 유닛 업데이트
+            updateSyncIndicator('active'); // 인디케이터 활성화
+            updateStatus('스크롤 동기화 활성화', 'success');
+        } else {
+            updateSyncIndicator('inactive'); // 인디케이터 비활성화
+            updateStatus('스크롤 동기화 비활성화', 'info');
+        }
+    });
+
+    // 저장된 설정 로드 및 초기 상태 설정
+    const savedSetting = localStorage.getItem('scroll_sync_enabled');
+    if (savedSetting === 'true') {
+        scrollSyncCheckbox.checked = true;
+        isScrollSyncEnabled = true;
+        updateSyncIndicator('active'); // 초기 로드시 인디케이터 활성화
+    }
+}
+
+// 스크롤 동기화 초기화 (DOM 로드 후)
+window.addEventListener('DOMContentLoaded', () => {
+    setupScrollSynchronization();
+});
