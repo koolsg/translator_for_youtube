@@ -154,8 +154,10 @@ async function loadModelsForProvider(provider, selectedModelName = null) {
             modelSelect.appendChild(option);
         });
 
-        if (selectedModelName) {
+        if (selectedModelName && models.includes(selectedModelName)) {
             modelSelect.value = selectedModelName;
+        } else {
+            modelSelect.value = models[0];
         }
 
         updateStatus(`${models.length}개 모델 로드 완료`, 'success');
@@ -322,6 +324,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     providerSelect.addEventListener('change', (e) => {
         loadModelsForProvider(e.target.value);
+        localStorage.setItem('lastUsedProvider', e.target.value);
     });
 
     loadModelsForProvider(lastUsedProvider, lastUsedModel);
@@ -468,9 +471,11 @@ function handleRegularTranslation() {
 async function handleStreamTranslation() {
     const inputText = document.getElementById('input-text').innerText;
     const outputDiv = document.getElementById('output-text');
-    const selectedModel = document.getElementById('model-select').value;
+    const modelSelect = document.getElementById('model-select');
+    const selectedModel = modelSelect.value;
     const targetLanguage = document.getElementById('target-language-select').value;
     const showNotification = document.getElementById('notification-checkbox').checked;
+    const selectedProvider = document.getElementById('provider-select').value;
 
     const translateButton = document.getElementById('translate-button');
     const inputDiv = document.getElementById('input-text');
@@ -549,6 +554,9 @@ async function handleStreamTranslation() {
         window.refreshScrollUnits?.();
 
         updateStatus('스트리밍 완료', 'success');
+        // 마지막 사용 모델/프로바이더 저장
+        localStorage.setItem('lastUsedProvider', document.getElementById('provider-select').value);
+        localStorage.setItem('lastUsedModel', selectedModel);
         if (showNotification) {
             // Assuming NotificationService is available or handled elsewhere
         }
@@ -578,22 +586,29 @@ async function handleStreamTranslation() {
 let isScrollSyncEnabled = false;
 let isScrollingProgrammatically = false;
 
-// 의미 단위로 텍스트 나누기 (줄바꿈 기준)
-function splitTextIntoSemanticUnits(text) {
-    const lines = text.split('\n');
+// 의미 단위로 텍스트 나누기 (줄 단위 / 블록 단위 우선)
+function splitTextIntoSemanticUnitsFromElement(element) {
+    if (!element) return [];
+
+    const children = Array.from(element.children);
+    const lines = children.length
+        ? children.map((child) => child.innerText || child.textContent || '')
+        : (element.innerText || '').split('\n');
+
     const units = [];
     let totalLength = 0;
 
     for (const line of lines) {
+        const normalized = line.replace(/\s+/g, ' ').trim();
         const start = totalLength;
-        const length = line.length;
+        const length = normalized.length;
         units.push({
-            text: line,
+            text: normalized,
             start,
             end: start + length,
-            length
+            length,
         });
-        totalLength += length + 1; // 줄바꿈 문자 가정
+        totalLength += length + 1; // 줄바꿈 보정
     }
 
     return units;
@@ -724,8 +739,8 @@ function setupScrollSynchronization() {
 
     // 초기 text units 생성
     function updateTextUnits() {
-        inputUnits = splitTextIntoSemanticUnits(inputText.textContent || '');
-        outputUnits = splitTextIntoSemanticUnits(outputText.textContent || '');
+        inputUnits = splitTextIntoSemanticUnitsFromElement(inputText);
+        outputUnits = splitTextIntoSemanticUnitsFromElement(outputText);
     }
 
     // 텍스트 변경 시 유닛 업데이트 (디바운스 적용)
