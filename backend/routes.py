@@ -236,49 +236,78 @@ def get_transcript(
 
         transcript_data = transcript.fetch()
 
-        merged_output = []
+        sentence_end_re = re.compile(r"[.!?。！？…‥]+[)\"”’\]]*")
+        merged_output: list[str] = []
         current_text = ""
         current_start_time = ""
-        minimum_length = 400  # 원하는 최대 길이 설정
+        minimum_length = 600  # 원하는 최대 길이 설정
+
+        max_length = minimum_length * 2  # 종결부호 없을 때를 위한 안전 컷
+
+        def flush_point(buffer_text: str) -> int:
+            """버퍼에서 분할 위치(인덱스)를 결정. 없으면 -1."""
+            length = len(buffer_text)
+
+            # 1) 최소 길이를 넘었고, 문장 종결부호가 하나라도 있으면 가장 마지막 종결부호에서 컷
+            if length >= minimum_length:
+                matches = list(sentence_end_re.finditer(buffer_text))
+                if matches:
+                    return matches[-1].end()
+
+            # 2) 종결부호가 없지만 최대 길이를 넘으면 강제 컷(가까운 공백 우선)
+            if length >= max_length:
+                cutoff = max_length
+                window_start = max(0, cutoff - 80)
+                window = buffer_text[window_start:cutoff]
+                last_space = window.rfind(" ")
+                if last_space != -1:
+                    return window_start + last_space
+                return cutoff
+
+            return -1
+
         if preserve_timestamps:
             for snippet in transcript_data:
                 text = clean_text(snippet.text)
+                # 현재 스니펫의 타임스탬프 문자열 계산
+                if snippet.start < 3600:
+                    snippet_ts = (
+                        f"[{snippet.start // 60:02.0f}:{snippet.start % 60:02.0f}]"
+                    )
+                else:
+                    snippet_ts = f"[{snippet.start // 3600:02.0f}:{snippet.start % 3600 // 60:02.0f}:{snippet.start % 60:02.0f}]"
+
                 if not current_text:
-                    if snippet.start < 3600:
-                        current_start_time = (
-                            f"[{snippet.start // 60:02.0f}:{snippet.start % 60:02.0f}]"
-                        )
-                    else:
-                        current_start_time = f"[{snippet.start // 3600:02.0f}:{snippet.start % 3600 // 60:02.0f}:{snippet.start % 60:02.0f}]"
+                    current_start_time = snippet_ts
 
                 current_text += (" " + text) if current_text else text
 
-                if (
-                    re.search(r"[.?!]$", text) and len(current_text) >= minimum_length
-                ) or (
-                    len(current_text) > minimum_length * 2
-                ):  # 20% 마진을 두어 안전성 확보
-                    merged_output.append(f"{current_start_time} {current_text.strip()}")
-                    current_text = ""
-                    current_start_time = ""
+                split_at = flush_point(current_text)
+                if split_at != -1:
+                    merged_output.append(
+                        f"{current_start_time} {current_text[:split_at].strip()}"
+                    )
+                    remainder = current_text[split_at:].strip()
+                    current_text = remainder
+                    current_start_time = snippet_ts if remainder else ""
+
             if current_text:
                 merged_output.append(f"{current_start_time} {current_text.strip()}")
+
             full_transcript = "\n".join(merged_output)
         else:
             for snippet in transcript_data:
                 text = clean_text(snippet.text)
                 current_text += (" " + text) if current_text else text
 
-                if (
-                    re.search(r"[.?!]$", text) and len(current_text) >= minimum_length
-                ) or (
-                    len(current_text) > minimum_length * 2
-                ):  # 20% 마진을 두어 안전성 확보
-                    merged_output.append(f"{current_text.strip()}")
-                    current_text = ""
-                    current_start_time = ""
+                split_at = flush_point(current_text)
+                if split_at != -1:
+                    merged_output.append(f"{current_text[:split_at].strip()}")
+                    current_text = current_text[split_at:].strip()
+
             if current_text:
                 merged_output.append(f"{current_text.strip()}")
+
             full_transcript = "\n".join(merged_output)
 
         response = {
