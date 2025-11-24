@@ -47,6 +47,19 @@ function updateCharCounter() {
 }
 
 /**
+ * 번역 결과 글자 수를 화면에 표시합니다.
+ */
+function updateOutputCharCounter(text = null) {
+    const counter = document.getElementById('output-char-counter');
+    const outputText = text !== null
+        ? text
+        : (document.getElementById('output-text')?.innerText ?? '');
+    if (counter) {
+        counter.textContent = `번역 글자: ${outputText.length}`;
+    }
+}
+
+/**
  * 상태 표시기를 업데이트합니다.
  */
 function updateStatus(message, type = 'info', showSpinner = false) {
@@ -260,6 +273,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('input-text').addEventListener('input', updateCharCounter);
     updateCharCounter();
+    updateOutputCharCounter('');
     loadLanguageOptions();
 
     const timestampCheckbox = document.getElementById('timestamp-checkbox');
@@ -415,6 +429,7 @@ function handleRegularTranslation() {
         let cleanText = cleanTranslatedText(data.translated_text);
 
         outputDiv.innerHTML = cleanText.split('\n').map(line => `<div>${line}</div>`).join('');
+        updateOutputCharCounter(cleanText);
         window.refreshScrollUnits?.();
         localStorage.setItem('lastUsedProvider', selectedProvider);
         localStorage.setItem('lastUsedModel', selectedModel);
@@ -436,6 +451,7 @@ function handleRegularTranslation() {
         else if (errorMessage.includes('입력 오류')) userFriendlyMessage = errorMessage;
         else if (errorMessage.includes('서버 내부 오류')) userFriendlyMessage = '서버에서 번역을 처리하던 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
         outputDiv.textContent = userFriendlyMessage;
+        updateOutputCharCounter(userFriendlyMessage);
         updateStatus(userFriendlyMessage, 'error');
     })
     .finally(() => {
@@ -467,6 +483,7 @@ async function handleStreamTranslation() {
     translateButton.disabled = true;
     inputDiv.setAttribute('contenteditable', 'false');
     outputDiv.textContent = ''; // Clear previous results
+    updateOutputCharCounter('');
     updateStatus('스트리밍 번역 중...', 'loading', true);
 
     const controller = new AbortController();
@@ -519,6 +536,7 @@ async function handleStreamTranslation() {
             const chunk = decoder.decode(value, { stream: true });
             fullResponse += chunk;
             outputDiv.innerHTML = fullResponse.split('\n').map(line => `<div>${line}</div>`).join(''); // 실시간 표시
+            updateOutputCharCounter(outputDiv.innerText);
         }
 
         // 스트리밍 완료 후 AI 소개 문구 정리
@@ -526,6 +544,7 @@ async function handleStreamTranslation() {
         if (cleanText !== fullResponse) {
             outputDiv.innerHTML = cleanText.split('\n').map(line => `<div>${line}</div>`).join(''); // 정제된 텍스트로 교체
         }
+        updateOutputCharCounter(outputDiv.innerText);
 
         window.refreshScrollUnits?.();
 
@@ -544,6 +563,7 @@ async function handleStreamTranslation() {
                 ? error.message
                 : `오류: ${error.message}`;
             outputDiv.textContent = message;
+            updateOutputCharCounter(message);
             updateStatus(message, 'error');
         }
     } finally {
