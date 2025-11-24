@@ -3,7 +3,7 @@
 # Combined Server Management Script
 # Unifies start_server.ps1 and stop_server.ps1 into single script
 # Usage: .\server.ps1 start [-Force]
-#        .\server.ps1 stop [-Force] [-Verbose]
+#        .\server.ps1 stop [-Force] [-ShowDetails]
 
 param(
     [Parameter(Mandatory=$true)]
@@ -11,6 +11,7 @@ param(
 
     [switch]$Force,      # Force restart or termination
     [switch]$ShowDetails # Enable detailed logging (stop only), parameter name changed from Verbose to avoid conflicts
+
 )
 
 # Parameter validation (done before main script execution)
