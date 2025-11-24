@@ -1,4 +1,5 @@
 """Core services for the Translation API Server."""
+# pyright: reportPrivateImportUsage=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 
 import json
 import logging
@@ -14,6 +15,7 @@ from exceptions import APIKeyError, RateLimitError
 # AI 서비스 임포트 (상단에서 선언하여 보안 및 성능 개선)
 try:
     import google.generativeai as genai
+
     _HAS_GENAI = True
 except ImportError:
     _HAS_GENAI = False
@@ -21,13 +23,22 @@ except ImportError:
 
 try:
     from google.api_core import exceptions as google_api_exceptions
+
     _HAS_GOOGLE_API_EXCEPTIONS = True
 except ImportError:
     google_api_exceptions = None
     _HAS_GOOGLE_API_EXCEPTIONS = False
 
+if not _HAS_GOOGLE_API_EXCEPTIONS:
+
+    class _DummyGoogleApiExceptions:
+        class ResourceExhausted(Exception): ...
+
+    google_api_exceptions = _DummyGoogleApiExceptions()  # type: ignore[assignment]
+
 try:
     from openai import OpenAI
+
     _HAS_OPENAI = True
 except ImportError:
     _HAS_OPENAI = False
@@ -45,12 +56,12 @@ API_TIMEOUT = 30.0  # 초
 MODEL_LIST_TIMEOUT = 10.0  # 초
 
 # 서버 설정
-DEFAULT_HOST = '127.0.0.1'
+DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5000
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
 
 # AI 서비스 설정
-DEFAULT_PROVIDER = 'gemini'
+DEFAULT_PROVIDER = "gemini"
 MAX_PRESETS = 5  # 프리셋으로 저장할 최대 모델 개수
 
 # UI 설정
@@ -58,194 +69,195 @@ MAX_DISPLAY_LANGUAGES = 10  # UI에 표시할 최대 언어 수
 
 # --- 언어 지원 상수 정의 ---
 SUPPORTED_LANGUAGES = {
-    'ko': '한국어',
-    'en': '영어',
-    'ja': '일본어',
-    'zh': '중국어',
-    'es': '스페인어',
-    'fr': '프랑스어',
-    'de': '독일어',
-    'ru': '러시아어',
-    'pt': '포르투갈어',
-    'it': '이탈리아어',
-    'ar': '아랍어',
-    'hi': '힌디어',
-    'th': '태국어',
-    'vi': '베트남어',
-    'nl': '네덜란드어',
-    'sv': '스웨덴어',
-    'da': '덴마크어',
-    'no': '노르웨이어',
-    'fi': '핀란드어',
-    'pl': '폴란드어',
-    'tr': '터키어',
-    'cs': '체코어',
-    'hu': '헝가리어',
-    'el': '그리스어',
-    'he': '히브리어',
-    'id': '인도네시아어',
-    'ms': '말레이어',
-    'tl': '타갈로그어',
-    'uk': '우크라이나어',
-    'bg': '불가리아어',
-    'hr': '크로아티아어',
-    'sk': '슬로바키아어',
-    'sl': '슬로베니아어',
-    'et': '에스토니아어',
-    'lv': '라트비아어',
-    'lt': '리투아니아어',
-    'mt': '몰타어',
-    'ga': '아일랜드어',
-    'cy': '웨일스어',
-    'is': '아이슬란드어',
-    'sq': '알바니아어',
-    'mk': '마케도니아어',
-    'sr': '세르비아어',
-    'bs': '보스니아어',
-    'me': '몬테네그로어',
-    'sw': '스와힐리어',
-    'am': '암하라어',
-    'ne': '네팔어',
-    'si': '싱할라어',
-    'ta': '타밀어',
-    'te': '텔루구어',
-    'kn': '칸나다어',
-    'ml': '말라얄람어',
-    'or': '오리야어',
-    'pa': '펀자브어',
-    'gu': '구자라트어',
-    'bn': '벵골어',
-    'ur': '우르두어',
-    'fa': '페르시아어',
-    'ps': '파슈토어',
-    'ku': '쿠르드어',
-    'ka': '조지아어',
-    'hy': '아르메니아어',
-    'az': '아제르바이잔어',
-    'kk': '카자흐어',
-    'uz': '우즈베크어',
-    'tk': '투르크멘어',
-    'ky': '키르기스어',
-    'tg': '타지크어',
-    'mn': '몽골어',
-    'km': '크메르어',
-    'lo': '라오어',
-    'my': '미얀마어',
-    'jv': '자바어',
-    'su': '순다어',
-    'ceb': '세부아노어',
-    'ilo': '일로카노어',
-    'haw': '하와이어',
-    'mi': '마오리어',
-    'sm': '사모아어',
-    'to': '통가어',
-    'fj': '피지어',
-    'ty': '타히티어',
-    'mg': '말라가시어',
-    'sn': '쇼나어',
-    'st': '소토어',
-    'tn': '츠와나어',
-    'xh': '코사어',
-    'zu': '줄루어',
-    'af': '아프리칸스어',
-    'la': '라틴어',
-    'eo': '에스페란토어',
-    'ia': '인터링구아어',
-    'vo': '볼라퓌크어',
-    'jw': '자바어',
-    'fy': '프리지아어',
-    'gd': '스코틀랜드 게일어',
-    'gv': '맨크스어',
-    'kw': '콘월어',
-    'co': '코르시카어',
-    'fur': '프리울리어',
-    'lij': '리구리아어',
-    'lmo': '롬바르드어',
-    'nap': '나폴리어',
-    'pms': '피에몬테어',
-    'rm': '로만슈어',
-    'sc': '사르데냐어',
-    'scn': '시칠리아어',
-    'vec': '베네토어',
-    'wa': '왈롱어',
-    'wuu': '우어',
-    'yue': '광둥어',
-    'hak': '하카어',
-    'nan': '민난어',
-    'cdo': '민둥어',
-    'cjy': '진어',
-    'cmn': '관화',
-    'hsn': '샹어',
-    'gan': '간어',
-    'za': '좡어',
-    'ii': '이족어',
-    'bo': '티베트어',
-    'dz': '종카어',
-    'ug': '위구르어',
-    'yi': '이디시어',
-    'yo': '요루바어',
-    'ig': '이그보어',
-    'ha': '하우사어',
-    'om': '오로모어',
-    'so': '소말리어',
-    'rw': '르완다어',
-    'rn': '룬디어',
-    'lg': '루간다어',
-    'ln': '링갈라어',
-    'kg': '콩고어',
-    'lua': '루바어',
-    'tpi': '토크피신어',
-    'tok': '토키포나어',
-    'ht': '아이티어',
-    'pap': '파피아멘토어',
-    'ay': '아이마라어',
-    'gn': '과라니어',
-    'qu': '케추아어',
-    'nv': '나바호어',
-    'chr': '체로키어',
-    'oj': '오지브와어',
-    'cr': '크리어',
-    'iu': '이누이트어',
-    'ojb': '오지브와어',
-    'oji': '오지브와어',
-    'ojs': '오지브와어',
-    'ojw': '오지브와어',
-    'otw': '오타와어',
-    'crg': '미시프어',
-    'crc': '론카리요어',
-    'crj': '크리어',
-    'crk': '크리어',
-    'crl': '크리어',
-    'crm': '크리어',
-    'crr': '크리어',
-    'crs': '크리어',
-    'csw': '크리어',
-    'cwd': '크리어',
-    'cwe': '크리어',
-    'cwg': '크리어',
-    'cwk': '크리어',
-    'cwkm': '크리어',
-    'cwm': '크리어',
-    'cwn': '크리어',
-    'cwo': '크리어',
-    'cwp': '크리어',
-    'cwq': '크리어',
-    'cwr': '크리어',
-    'cws': '크리어',
-    'cwt': '크리어',
-    'cwu': '크리어',
-    'cwv': '크리어',
-    'cww': '크리어',
-    'cwx': '크리어',
-    'cwy': '크리어'
+    "ko": "한국어",
+    "en": "영어",
+    "ja": "일본어",
+    "zh": "중국어",
+    "es": "스페인어",
+    "fr": "프랑스어",
+    "de": "독일어",
+    "ru": "러시아어",
+    "pt": "포르투갈어",
+    "it": "이탈리아어",
+    "ar": "아랍어",
+    "hi": "힌디어",
+    "th": "태국어",
+    "vi": "베트남어",
+    "nl": "네덜란드어",
+    "sv": "스웨덴어",
+    "da": "덴마크어",
+    "no": "노르웨이어",
+    "fi": "핀란드어",
+    "pl": "폴란드어",
+    "tr": "터키어",
+    "cs": "체코어",
+    "hu": "헝가리어",
+    "el": "그리스어",
+    "he": "히브리어",
+    "id": "인도네시아어",
+    "ms": "말레이어",
+    "tl": "타갈로그어",
+    "uk": "우크라이나어",
+    "bg": "불가리아어",
+    "hr": "크로아티아어",
+    "sk": "슬로바키아어",
+    "sl": "슬로베니아어",
+    "et": "에스토니아어",
+    "lv": "라트비아어",
+    "lt": "리투아니아어",
+    "mt": "몰타어",
+    "ga": "아일랜드어",
+    "cy": "웨일스어",
+    "is": "아이슬란드어",
+    "sq": "알바니아어",
+    "mk": "마케도니아어",
+    "sr": "세르비아어",
+    "bs": "보스니아어",
+    "me": "몬테네그로어",
+    "sw": "스와힐리어",
+    "am": "암하라어",
+    "ne": "네팔어",
+    "si": "싱할라어",
+    "ta": "타밀어",
+    "te": "텔루구어",
+    "kn": "칸나다어",
+    "ml": "말라얄람어",
+    "or": "오리야어",
+    "pa": "펀자브어",
+    "gu": "구자라트어",
+    "bn": "벵골어",
+    "ur": "우르두어",
+    "fa": "페르시아어",
+    "ps": "파슈토어",
+    "ku": "쿠르드어",
+    "ka": "조지아어",
+    "hy": "아르메니아어",
+    "az": "아제르바이잔어",
+    "kk": "카자흐어",
+    "uz": "우즈베크어",
+    "tk": "투르크멘어",
+    "ky": "키르기스어",
+    "tg": "타지크어",
+    "mn": "몽골어",
+    "km": "크메르어",
+    "lo": "라오어",
+    "my": "미얀마어",
+    "jv": "자바어",
+    "su": "순다어",
+    "ceb": "세부아노어",
+    "ilo": "일로카노어",
+    "haw": "하와이어",
+    "mi": "마오리어",
+    "sm": "사모아어",
+    "to": "통가어",
+    "fj": "피지어",
+    "ty": "타히티어",
+    "mg": "말라가시어",
+    "sn": "쇼나어",
+    "st": "소토어",
+    "tn": "츠와나어",
+    "xh": "코사어",
+    "zu": "줄루어",
+    "af": "아프리칸스어",
+    "la": "라틴어",
+    "eo": "에스페란토어",
+    "ia": "인터링구아어",
+    "vo": "볼라퓌크어",
+    "jw": "자바어",
+    "fy": "프리지아어",
+    "gd": "스코틀랜드 게일어",
+    "gv": "맨크스어",
+    "kw": "콘월어",
+    "co": "코르시카어",
+    "fur": "프리울리어",
+    "lij": "리구리아어",
+    "lmo": "롬바르드어",
+    "nap": "나폴리어",
+    "pms": "피에몬테어",
+    "rm": "로만슈어",
+    "sc": "사르데냐어",
+    "scn": "시칠리아어",
+    "vec": "베네토어",
+    "wa": "왈롱어",
+    "wuu": "우어",
+    "yue": "광둥어",
+    "hak": "하카어",
+    "nan": "민난어",
+    "cdo": "민둥어",
+    "cjy": "진어",
+    "cmn": "관화",
+    "hsn": "샹어",
+    "gan": "간어",
+    "za": "좡어",
+    "ii": "이족어",
+    "bo": "티베트어",
+    "dz": "종카어",
+    "ug": "위구르어",
+    "yi": "이디시어",
+    "yo": "요루바어",
+    "ig": "이그보어",
+    "ha": "하우사어",
+    "om": "오로모어",
+    "so": "소말리어",
+    "rw": "르완다어",
+    "rn": "룬디어",
+    "lg": "루간다어",
+    "ln": "링갈라어",
+    "kg": "콩고어",
+    "lua": "루바어",
+    "tpi": "토크피신어",
+    "tok": "토키포나어",
+    "ht": "아이티어",
+    "pap": "파피아멘토어",
+    "ay": "아이마라어",
+    "gn": "과라니어",
+    "qu": "케추아어",
+    "nv": "나바호어",
+    "chr": "체로키어",
+    "oj": "오지브와어",
+    "cr": "크리어",
+    "iu": "이누이트어",
+    "ojb": "오지브와어",
+    "oji": "오지브와어",
+    "ojs": "오지브와어",
+    "ojw": "오지브와어",
+    "otw": "오타와어",
+    "crg": "미시프어",
+    "crc": "론카리요어",
+    "crj": "크리어",
+    "crk": "크리어",
+    "crl": "크리어",
+    "crm": "크리어",
+    "crr": "크리어",
+    "crs": "크리어",
+    "csw": "크리어",
+    "cwd": "크리어",
+    "cwe": "크리어",
+    "cwg": "크리어",
+    "cwk": "크리어",
+    "cwkm": "크리어",
+    "cwm": "크리어",
+    "cwn": "크리어",
+    "cwo": "크리어",
+    "cwp": "크리어",
+    "cwq": "크리어",
+    "cwr": "크리어",
+    "cws": "크리어",
+    "cwt": "크리어",
+    "cwu": "크리어",
+    "cwv": "크리어",
+    "cww": "크리어",
+    "cwx": "크리어",
+    "cwy": "크리어",
 }
+
 
 def _parse_retry_after_seconds(message: str) -> Optional[int]:
     """Gemini 오류 메시지에서 재시도 대기 시간을 파싱합니다."""
     retry_patterns = [
         r"retry in\s+(\d+(?:\.\d+)?)s",
         r"retry_delay[^\d]*(\d+)",
-        r"retry-after[^\d]*(\d+)"
+        r"retry-after[^\d]*(\d+)",
     ]
 
     lowered = message.lower()
@@ -263,11 +275,17 @@ def _parse_retry_after_seconds(message: str) -> Optional[int]:
 
 def _extract_retry_after_seconds(error: Exception) -> Optional[int]:
     """예외 객체에서 재시도 대기 시간을 추출합니다."""
-    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(error, google_api_exceptions.ResourceExhausted):
+    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(
+        error, google_api_exceptions.ResourceExhausted
+    ):
         retry_delay = getattr(error, "retry_delay", None)
         if retry_delay:
             try:
-                seconds_value = retry_delay.total_seconds() if hasattr(retry_delay, "total_seconds") else float(retry_delay)
+                seconds_value = (
+                    retry_delay.total_seconds()
+                    if hasattr(retry_delay, "total_seconds")
+                    else float(retry_delay)
+                )
                 return max(1, int(math.ceil(seconds_value)))
             except (TypeError, ValueError):
                 pass
@@ -275,7 +293,11 @@ def _extract_retry_after_seconds(error: Exception) -> Optional[int]:
         retry_after_attr = getattr(error, "retry_after", None)
         if retry_after_attr:
             try:
-                seconds_value = retry_after_attr.total_seconds() if hasattr(retry_after_attr, "total_seconds") else float(retry_after_attr)
+                seconds_value = (
+                    retry_after_attr.total_seconds()
+                    if hasattr(retry_after_attr, "total_seconds")
+                    else float(retry_after_attr)
+                )
                 return max(1, int(math.ceil(seconds_value)))
             except (TypeError, ValueError):
                 pass
@@ -285,16 +307,18 @@ def _extract_retry_after_seconds(error: Exception) -> Optional[int]:
 
 def _is_gemini_rate_limit_error(error: Exception) -> bool:
     """Gemini API 호출시 발생한 예외가 할당량 초과인지 확인합니다."""
-    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(error, google_api_exceptions.ResourceExhausted):
+    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(
+        error, google_api_exceptions.ResourceExhausted
+    ):
         return True
 
     message = str(error).lower()
     keywords = (
-        'quota exceeded',
-        'rate limit',
-        'too many requests',
-        '429',
-        'resource exhausted'
+        "quota exceeded",
+        "rate limit",
+        "too many requests",
+        "429",
+        "resource exhausted",
     )
     return any(keyword in message for keyword in keywords)
 
@@ -315,7 +339,7 @@ def _build_gemini_rate_limit_message(retry_after: Optional[int]) -> str:
 def setup_logging(debug: bool = False) -> None:
     """애플리케이션의 로깅을 설정합니다."""
     log_level = logging.DEBUG if debug else logging.INFO
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
     # 루트 로거 설정
     logging.basicConfig(
@@ -323,19 +347,22 @@ def setup_logging(debug: bool = False) -> None:
         format=log_format,
         handlers=[
             logging.StreamHandler(sys.stdout),  # 콘솔 출력
-            logging.FileHandler('translation_server.log', encoding='utf-8')  # 파일 출력
-        ]
+            logging.FileHandler(
+                "translation_server.log", encoding="utf-8"
+            ),  # 파일 출력
+        ],
     )
 
     # 특정 라이브러리의 로그 레벨을 조정하여 불필요한 로그를 줄입니다.
-    logging.getLogger('uvicorn').setLevel(logging.INFO)
-    logging.getLogger('werkzeug').setLevel(logging.WARNING)
+    logging.getLogger("uvicorn").setLevel(logging.INFO)
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)
     logger.info("로깅 설정이 완료되었습니다.")
 
 
 # --- 유틸리티 함수 ---
+
 
 def calculate_retry_delay(attempt: int) -> float:
     """지수 백오프 알고리즘을 사용하여 재시도 지연 시간을 계산합니다.
@@ -346,7 +373,7 @@ def calculate_retry_delay(attempt: int) -> float:
     Returns:
         float: 대기할 시간 (초)
     """
-    delay = INITIAL_RETRY_DELAY * (BACKOFF_FACTOR ** attempt)
+    delay = INITIAL_RETRY_DELAY * (BACKOFF_FACTOR**attempt)
     # 지연 시간이 최대값을 초과하지 않도록 제한
     return min(delay, MAX_RETRY_DELAY)
 
@@ -360,7 +387,12 @@ def is_retryable_error(error: Exception) -> bool:
     Returns:
         bool: 재시도 가능 여부
     """
-    from exceptions import NetworkError, APIError, RateLimitError, ServiceUnavailableError
+    from exceptions import (
+        NetworkError,
+        APIError,
+        RateLimitError,
+        ServiceUnavailableError,
+    )
 
     # 재시도 가능한 예외 타입들
     retryable_types = (
@@ -370,7 +402,7 @@ def is_retryable_error(error: Exception) -> bool:
         ServiceUnavailableError,
         ConnectionError,
         TimeoutError,
-        OSError  # 네트워크 관련 OS 에러
+        OSError,  # 네트워크 관련 OS 에러
     )
 
     # 예외 타입 체크
@@ -379,16 +411,16 @@ def is_retryable_error(error: Exception) -> bool:
 
     # 특정 에러 메시지 패턴 체크
     retryable_messages = [
-        'timeout',
-        'connection',
-        'network',
-        'temporary',
-        'rate limit',
-        'too many requests',
-        'service unavailable',
-        'internal server error',
-        'bad gateway',
-        'gateway timeout'
+        "timeout",
+        "connection",
+        "network",
+        "temporary",
+        "rate limit",
+        "too many requests",
+        "service unavailable",
+        "internal server error",
+        "bad gateway",
+        "gateway timeout",
     ]
 
     error_msg = str(error).lower()
@@ -426,9 +458,7 @@ def get_popular_languages() -> List[str]:
         List[str]: 인기 언어 코드 목록 (상위 10개)
     """
     # 사용 빈도가 높은 주요 언어들
-    popular_codes = [
-        'ko', 'en', 'ja', 'zh', 'es', 'fr', 'de', 'ru', 'pt', 'it'
-    ]
+    popular_codes = ["ko", "en", "ja", "zh", "es", "fr", "de", "ru", "pt", "it"]
     return popular_codes
 
 
@@ -443,13 +473,16 @@ def get_language_options_html() -> str:
 
     for lang_code in popular_langs:
         lang_name = get_language_name(lang_code)
-        selected = ' selected' if lang_code == 'ko' else ''
-        options.append(f'            <option value="{lang_code}"{selected}>{lang_name}</option>')
+        selected = " selected" if lang_code == "ko" else ""
+        options.append(
+            f'            <option value="{lang_code}"{selected}>{lang_name}</option>'
+        )
 
-    return '\n'.join(options)
+    return "\n".join(options)
 
 
 # --- 핵심 서비스 클래스 ---
+
 
 class ConfigManager:
     """JSON 설정 파일을 관리하는 클래스 (읽기, 쓰기, 유효성 검사).
@@ -457,31 +490,35 @@ class ConfigManager:
     환경변수를 우선적으로 사용하며, config.json을 fallback으로 활용합니다.
     """
 
-    def __init__(self, config_path: str = 'config.json') -> None:
+    def __init__(self, config_path: str = "config.json") -> None:
         self.config_path = config_path
-        self._config: Optional[Dict[str, Any]] = None  # 로드된 설정을 캐싱하기 위한 변수
+        self._config: Optional[Dict[str, Any]] = (
+            None  # 로드된 설정을 캐싱하기 위한 변수
+        )
         self.logger = logging.getLogger(__name__)
 
     def load(self) -> Dict[str, Any]:
         """설정 파일을 로드하고 JSON으로 파싱합니다."""
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config_text = f.read()
 
             # JSON 파일 내의 주석(#으로 시작)을 제거하여 파싱 용이하게 합니다.
             lines = []
-            for line in config_text.split('\n'):
-                if '#' in line:
-                    line = line[:line.find('#')].rstrip()
+            for line in config_text.split("\n"):
+                if "#" in line:
+                    line = line[: line.find("#")].rstrip()
                 if line.strip():
                     lines.append(line)
 
-            config_text_cleaned = '\n'.join(lines)
+            config_text_cleaned = "\n".join(lines)
             config = json.loads(config_text_cleaned)
 
             # 설정 데이터가 올바른 딕셔너리 형태인지 검증합니다.
             if not isinstance(config, dict):
-                raise ValueError("설정 파일은 반드시 JSON 객체(딕셔너리) 형태여야 합니다.")
+                raise ValueError(
+                    "설정 파일은 반드시 JSON 객체(딕셔너리) 형태여야 합니다."
+                )
 
             self._config = cast(Dict[str, Any], config)
             self.logger.info("설정 파일을 성공적으로 로드했습니다.")
@@ -501,22 +538,18 @@ class ConfigManager:
         이 방식을 통해 보안과 유연성을 동시에 확보합니다.
         """
         # 환경변수에서 API 키를 우선적으로 확인합니다 (보안 우수)
-        gemini_key = os.getenv('GEMINI_API_KEY')
-        openai_key = os.getenv('OPENAI_API_KEY')
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        openai_key = os.getenv("OPENAI_API_KEY")
 
         # 환경변수가 하나라도 설정되어 있으면 config.json을 로드하지 않고 환경변수만 사용
         if gemini_key or openai_key:
             config_from_env = {
-                'gemini': {
-                    'api_keys': [gemini_key] if gemini_key else []
+                "gemini": {"api_keys": [gemini_key] if gemini_key else []},
+                "openai": {"api_key": openai_key or ""},
+                "presets": {  # 최근 사용한 모델 정보를 저장하기 위한 프리셋
+                    "models": [],
+                    "targets": [],
                 },
-                'openai': {
-                    'api_key': openai_key or ''
-                },
-                'presets': {  # 최근 사용한 모델 정보를 저장하기 위한 프리셋
-                    'models': [],
-                    'targets': []
-                }
             }
             self._config = config_from_env
             self.logger.debug("환경변수로부터 설정을 안전하게 로드했습니다.")
@@ -533,7 +566,7 @@ class ConfigManager:
 
     def save_config(self, config: Dict[str, Any]) -> None:
         """설정 정보를 JSON 파일로 저장합니다."""
-        with open(self.config_path, 'w', encoding='utf-8') as f:
+        with open(self.config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
 
@@ -550,7 +583,7 @@ class GeminiTranslator:
     def validate_api_keys(self) -> List[str]:
         """설정된 Gemini API 키들의 유효성을 검사하고 리스트로 반환합니다."""
         config = self.config_manager.get_config()
-        api_keys = config.get('gemini', {}).get('api_keys', [])
+        api_keys = config.get("gemini", {}).get("api_keys", [])
 
         # API 키가 없거나 빈 값이 있으면 오류 발생
         if not api_keys or not all(api_keys):
@@ -578,6 +611,8 @@ class GeminiTranslator:
         Raises:
             Exception: 최대 재시도 횟수 초과 시
         """
+        if not _HAS_GENAI or genai is None:
+            raise RuntimeError("google-generativeai 패키지가 설치되어 있지 않습니다.")
         api_keys = self.validate_api_keys()
         selected_key = random.choice(api_keys)  # 부하 분산을 위해 무작위 키 선택
 
@@ -608,17 +643,17 @@ Text to translate:
                         "Gemini 할당량 초과 감지: model=%s retry_after=%s error=%s",
                         model_name,
                         retry_after_seconds,
-                        e
+                        e,
                     )
                     raise RateLimitError(
                         user_message,
-                        provider='gemini',
+                        provider="gemini",
                         retry_after=retry_after_seconds,
                         details={
-                            'retry_after_seconds': retry_after_seconds,
-                            'model': model_name,
-                            'original_error': str(e)
-                        }
+                            "retry_after_seconds": retry_after_seconds,
+                            "model": model_name,
+                            "original_error": str(e),
+                        },
                     ) from e
 
                 # 마지막 시도가 아니면 재시도
@@ -630,6 +665,7 @@ Text to translate:
                             f"{delay}초 후 재시도합니다."
                         )
                         import time
+
                         time.sleep(delay)
                         continue
                     else:
@@ -639,11 +675,14 @@ Text to translate:
                 # 마지막 시도에서도 실패한 경우
                 self.logger.error(f"Gemini 번역 최종 실패: {e}")
                 raise
+        raise RuntimeError("Gemini 번역이 완료되지 않았습니다.")
 
     async def translate_stream(self, text: str, model_name: str, target_language: str):
         """Gemini API를 사용하여 스트리밍 방식으로 텍스트를 번역합니다."""
         api_keys = self.validate_api_keys()
         selected_key = random.choice(api_keys)
+        if not _HAS_GENAI or genai is None:
+            raise RuntimeError("google-generativeai 패키지가 설치되어 있지 않습니다.")
         genai.configure(api_key=selected_key)
         model = genai.GenerativeModel(model_name)
 
@@ -672,17 +711,17 @@ Text to translate:
                     "Gemini 스트리밍 할당량 초과 감지: model=%s retry_after=%s error=%s",
                     model_name,
                     retry_after_seconds,
-                    e
+                    e,
                 )
                 raise RateLimitError(
                     user_message,
-                    provider='gemini',
+                    provider="gemini",
                     retry_after=retry_after_seconds,
                     details={
-                        'retry_after_seconds': retry_after_seconds,
-                        'model': model_name,
-                        'original_error': str(e)
-                    }
+                        "retry_after_seconds": retry_after_seconds,
+                        "model": model_name,
+                        "original_error": str(e),
+                    },
                 ) from e
             raise
 
@@ -703,7 +742,7 @@ class OpenAITranslator:
             APIKeyError: API 키가 없는 경우
         """
         config = self.config_manager.get_config()
-        api_key = config.get('openai', {}).get('api_key')
+        api_key = config.get("openai", {}).get("api_key")
 
         if not api_key:
             raise APIKeyError(
@@ -730,6 +769,8 @@ class OpenAITranslator:
         Raises:
             Exception: 최대 재시도 횟수 초과 시
         """
+        if not _HAS_OPENAI or OpenAI is None:
+            raise RuntimeError("openai 패키지가 설치되어 있지 않습니다.")
         api_key = self.validate_api_key()
 
         # 재시도 로직을 통한 안정적인 API 호출
@@ -741,9 +782,12 @@ class OpenAITranslator:
                 response = client.chat.completions.create(
                     model=model_name,
                     messages=[
-                        {"role": "system", "content": f"You are a translator. Translate the given text to {target_language}."},
-                        {"role": "user", "content": text}
-                    ]
+                        {
+                            "role": "system",
+                            "content": f"You are a translator. Translate the given text to {target_language}.",
+                        },
+                        {"role": "user", "content": text},
+                    ],
                 )
 
                 # 응답에서 번역 텍스트 추출
@@ -760,6 +804,7 @@ class OpenAITranslator:
                             f"{delay}초 후 재시도합니다."
                         )
                         import time
+
                         time.sleep(delay)
                         continue
                     else:
@@ -769,19 +814,25 @@ class OpenAITranslator:
                 # 마지막 시도에서도 실패한 경우
                 logging.getLogger(__name__).error(f"OpenAI 번역 최종 실패: {e}")
                 raise
+        raise RuntimeError("OpenAI 번역이 완료되지 않았습니다.")
 
     async def translate_stream(self, text: str, model_name: str, target_language: str):
         """OpenAI API를 사용하여 스트리밍 방식으로 텍스트를 번역합니다."""
+        if not _HAS_OPENAI or OpenAI is None:
+            raise RuntimeError("openai 패키지가 설치되어 있지 않습니다.")
         api_key = self.validate_api_key()
         client = OpenAI(api_key=api_key)
 
         response_stream = await client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": f"You are a translator. Translate the given text to {target_language}."},
-                {"role": "user", "content": text}
+                {
+                    "role": "system",
+                    "content": f"You are a translator. Translate the given text to {target_language}.",
+                },
+                {"role": "user", "content": text},
             ],
-            stream=True
+            stream=True,
         )
 
         async for chunk in response_stream:
@@ -817,10 +868,10 @@ class TranslationService:
         Raises:
             ValueError: 지원하지 않는 모델인 경우
         """
-        if 'gemini' in model_name:
+        if "gemini" in model_name:
             # Gemini 모델의 경우 Gemini 번역자 사용
             return self.gemini_translator.translate(text, model_name, target_language)
-        elif 'gpt' in model_name:
+        elif "gpt" in model_name:
             # GPT 모델의 경우 OpenAI 번역자 사용
             return self.openai_translator.translate(text, model_name, target_language)
         else:
@@ -829,11 +880,15 @@ class TranslationService:
 
     async def translate_stream(self, text: str, model_name: str, target_language: str):
         """모델 이름에 따라 적절한 번역 제공자를 선택하여 스트리밍 번역을 수행합니다."""
-        if 'gemini' in model_name:
-            async for chunk in self.gemini_translator.translate_stream(text, model_name, target_language):
+        if "gemini" in model_name:
+            async for chunk in self.gemini_translator.translate_stream(
+                text, model_name, target_language
+            ):
                 yield chunk
-        elif 'gpt' in model_name:
-            async for chunk in self.openai_translator.translate_stream(text, model_name, target_language):
+        elif "gpt" in model_name:
+            async for chunk in self.openai_translator.translate_stream(
+                text, model_name, target_language
+            ):
                 yield chunk
         else:
             raise ValueError(f"지원하지 않는 모델입니다: {model_name}")
@@ -853,15 +908,15 @@ class TranslationService:
         available_models = []
 
         # 설정 파일의 프리셋 모델을 먼저 추가하여 사용자 경험 향상
-        presets = config.get('presets', {}).get('models', [])
-        provider_filter = 'gemini' if provider == 'gemini' else 'gpt'
+        presets = config.get("presets", {}).get("models", [])
+        provider_filter = "gemini" if provider == "gemini" else "gpt"
         provider_presets = [model for model in presets if provider_filter in model]
         available_models.extend(provider_presets)
 
         # 각 API에서 동적으로 최신 모델 목록을 가져옵니다
-        if provider == 'gemini':
+        if provider == "gemini":
             available_models.extend(self._get_gemini_models())
-        elif provider == 'openai':
+        elif provider == "openai":
             available_models.extend(self._get_openai_models())
 
         # 중복된 모델 이름을 제거하면서 순서를 유지하여 깔끔한 목록 제공
@@ -882,7 +937,7 @@ class TranslationService:
         if not _HAS_GENAI:
             self.logger.error("Google Generative AI 라이브러리가 설치되지 않았습니다.")
             config = self.config_manager.get_config()
-            return config.get('gemini', {}).get('available_models', [])
+            return config.get("gemini", {}).get("available_models", [])
 
         try:
             # 유효한 API 키 검증
@@ -892,7 +947,7 @@ class TranslationService:
             models = []
             # API에서 모델 목록을 가져와 텍스트 생성 가능한 모델만 필터링
             for model_info in genai.list_models():
-                if 'generateContent' in model_info.supported_generation_methods:
+                if "generateContent" in model_info.supported_generation_methods:
                     models.append(model_info.name)
             return models
 
@@ -900,7 +955,7 @@ class TranslationService:
             # API 호출 실패 시 로깅하고 저장된 목록으로 대체
             self.logger.error(f"Gemini 모델 목록을 가져오는 데 실패했습니다: {e}")
             config = self.config_manager.get_config()
-            return config.get('gemini', {}).get('available_models', [])
+            return config.get("gemini", {}).get("available_models", [])
 
     def _get_openai_models(self) -> List[str]:
         """OpenAI API에서 사용 가능한 GPT 모델 목록을 동적으로 가져옵니다.
@@ -910,18 +965,20 @@ class TranslationService:
         if not _HAS_OPENAI:
             self.logger.error("OpenAI 라이브러리가 설치되지 않았습니다.")
             config = self.config_manager.get_config()
-            return config.get('openai', {}).get('available_models', [])
+            return config.get("openai", {}).get("available_models", [])
 
         try:
             # API 키 유효성 검증 및 플레이스홀더 검사 강화
+            if not _HAS_OPENAI or OpenAI is None:
+                raise RuntimeError("openai 패키지가 설치되어 있지 않습니다.")
             api_key = self.openai_translator.validate_api_key()
 
             # 플레이스홀더 값 검증 강화
             placeholder_values = [
-                'your_openai_api_key_here',
-                'YOUR_OPENAI_API_KEY_HERE',
-                'sk-...your_openai_api_key_here',
-                'your_api_key_here'
+                "your_openai_api_key_here",
+                "YOUR_OPENAI_API_KEY_HERE",
+                "sk-...your_openai_api_key_here",
+                "your_api_key_here",
             ]
 
             if api_key in placeholder_values:
@@ -931,7 +988,7 @@ class TranslationService:
                 )
 
             # API 키 형식 검증 (OpenAI 키는 'sk-'로 시작)
-            if not api_key.startswith('sk-'):
+            if not api_key.startswith("sk-"):
                 raise ValueError(
                     "OpenAI API 키 형식이 올바르지 않습니다. "
                     "'sk-'로 시작하는 유효한 키를 입력해주세요."
@@ -946,7 +1003,7 @@ class TranslationService:
             # API 호출 실패 시 로깅하고 저장된 목록으로 대체
             self.logger.error(f"OpenAI 모델 목록을 가져오는 데 실패했습니다: {e}")
             config = self.config_manager.get_config()
-            return config.get('openai', {}).get('available_models', [])
+            return config.get("openai", {}).get("available_models", [])
 
     def save_preset_model(self, model_name: str) -> None:
         """성공적으로 사용된 모델을 프리셋에 저장하여 다음 사용 시 우선 표시합니다.
@@ -959,10 +1016,10 @@ class TranslationService:
         config = self.config_manager.get_config()
 
         # 프리셋 구조가 없는 경우 초기화
-        if 'presets' not in config:
-            config['presets'] = {'models': [], 'targets': []}
+        if "presets" not in config:
+            config["presets"] = {"models": [], "targets": []}
 
-        presets = config['presets']['models']
+        presets = config["presets"]["models"]
 
         # 중복 방지를 위해 이미 존재하는지 확인
         if model_name not in presets:

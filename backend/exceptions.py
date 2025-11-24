@@ -24,17 +24,22 @@ class TranslationAPIError(Exception):
     def to_dict(self) -> Dict[str, Any]:
         """예외 정보를 딕셔너리로 변환하여 JSON 응답에 사용합니다."""
         return {
-            'error': self.__class__.__name__,
-            'message': self.message,
-            'timestamp': self.timestamp,
-            'details': self.details
+            "error": self.__class__.__name__,
+            "message": self.message,
+            "timestamp": self.timestamp,
+            "details": self.details,
         }
 
 
 class ConfigurationError(TranslationAPIError):
     """Raised when there's an issue with application configuration."""
 
-    def __init__(self, message: str, config_key: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        config_key: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__(message, details)
         self.config_key = config_key
 
@@ -42,15 +47,26 @@ class ConfigurationError(TranslationAPIError):
 class APIKeyError(ConfigurationError):
     """Raised when API key configuration is invalid or missing."""
 
-    def __init__(self, message: str, provider: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
-        super().__init__(message, config_key='api_key', details=details)
+    def __init__(
+        self,
+        message: str,
+        provider: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(message, config_key="api_key", details=details)
         self.provider = provider
 
 
 class NetworkError(TranslationAPIError):
     """Raised when network-related errors occur."""
 
-    def __init__(self, message: str, url: Optional[str] = None, status_code: Optional[int] = None, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        url: Optional[str] = None,
+        status_code: Optional[int] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__(message, details)
         self.url = url
         self.status_code = status_code
@@ -59,7 +75,13 @@ class NetworkError(TranslationAPIError):
 class APIError(TranslationAPIError):
     """Raised when external API calls fail."""
 
-    def __init__(self, message: str, provider: str, model: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        provider: str,
+        model: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__(message, details)
         self.provider = provider
         self.model = model
@@ -68,7 +90,13 @@ class APIError(TranslationAPIError):
 class TranslationError(TranslationAPIError):
     """Raised when there's an error during text translation."""
 
-    def __init__(self, message: str, model: Optional[str] = None, target_language: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        model: Optional[str] = None,
+        target_language: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__(message, details)
         self.model = model
         self.target_language = target_language
@@ -77,7 +105,13 @@ class TranslationError(TranslationAPIError):
 class ValidationError(TranslationAPIError):
     """Raised when input validation fails."""
 
-    def __init__(self, message: str, field: Optional[str] = None, value: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        field: Optional[str] = None,
+        value: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__(message, details)
         self.field = field
         self.value = value
@@ -86,7 +120,13 @@ class ValidationError(TranslationAPIError):
 class RateLimitError(APIError):
     """Raised when API rate limits are exceeded."""
 
-    def __init__(self, message: str, provider: str, retry_after: Optional[int] = None, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        provider: str,
+        retry_after: Optional[int] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__(message, provider, details=details)
         self.retry_after = retry_after
 
@@ -94,6 +134,8 @@ class RateLimitError(APIError):
 class ServiceUnavailableError(TranslationAPIError):
     """Raised when external services are temporarily unavailable."""
 
-    def __init__(self, message: str, service: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, message: str, service: str, details: Optional[Dict[str, Any]] = None
+    ) -> None:
         super().__init__(message, details)
         self.service = service

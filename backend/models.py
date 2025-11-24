@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 class TranslationRequest(BaseModel):
     """번역 요청 데이터 구조를 정의합니다."""
+
     text: str  # 번역할 원본 텍스트
     model: str  # 사용할 AI 모델 (예: 'gemini-pro', 'gpt-3.5-turbo')
     target_language: str  # 목표 언어 코드 (예: 'ko', 'en', 'ja')
@@ -18,4 +19,5 @@ class TranslationRequest(BaseModel):
 
 class TranslationResponse(BaseModel):
     """번역 응답 데이터 구조를 정의합니다."""
+
     translated_text: str  # 번역된 텍스트

@@ -1,17 +1,18 @@
 [project]
-name = "my-translator-for-youtube"
+name = "my-server"
 version = "0.1.0"
-description = "Translation API Server for YouTube"
+description = "FastAPI Server"
 requires-python = ">=3.9"
 dependencies = [
     "fastapi",
     "uvicorn",
-    "python-multipart",
     "pydantic",
     "openai",
     "google-generativeai",
     "plyer",
-    "python-dotenv"
+    "python-dotenv",
+    "youtube-transcript-api",
+    "psutil"
 ]
 
 [dependency-groups]

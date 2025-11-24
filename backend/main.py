@@ -36,8 +36,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 모든 출처 허용
     allow_credentials=True,
-    allow_methods=["*"], # 모든 HTTP 메소드 허용
-    allow_headers=["*"], # 모든 HTTP 헤더 허용
+    allow_methods=["*"],  # 모든 HTTP 메소드 허용
+    allow_headers=["*"],  # 모든 HTTP 헤더 허용
 )
 
 # Register API routes
@@ -50,46 +50,50 @@ if __name__ == "__main__":
     from services import DEFAULT_HOST, DEFAULT_PORT
 
     # 서버 시작 로깅: 자세한 시작 정보 기록
-    logger = logging.getLogger(__name__)
     import os
+    import sys
     import psutil
 
-    logger.info("="*60)
-    logger.info("🌟 TRANSLATION SERVER STARTING...")
+    logger = logging.getLogger(__name__)
+
+    logger.info("=" * 60)
+    logger.info("TRANSLATION SERVER STARTING...")
 
     # 현재 Python 프로세스 정보 기록
-    logger.info("🔍 Checking existing Python processes...")
+    logger.info("Checking existing Python processes...")
     python_processes = []
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
-            if proc.info['name'] and 'python' in proc.info['name'].lower():
-                cmdline = ' '.join(proc.info['cmdline']) if proc.info['cmdline'] else 'N/A'
+            if proc.info["name"] and "python" in proc.info["name"].lower():
+                cmdline = (
+                    " ".join(proc.info["cmdline"]) if proc.info["cmdline"] else "N/A"
+                )
                 python_processes.append(f"PID:{proc.info['pid']} - {cmdline[:100]}...")
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 
     if python_processes:
-        logger.info(f"📊 Found {len(python_processes)} Python processes:")
+        logger.info(f"Found {len(python_processes)} Python processes:")
         for proc_info in python_processes:
-            logger.info(f"   ▶ {proc_info}")
+            logger.info(f"   -> {proc_info}")
     else:
-        logger.info("📊 No existing Python processes found")
+        logger.info("No existing Python processes found")
 
-    logger.info(f"📡 Host: {DEFAULT_HOST}")
-    logger.info(f"🔌 Port: {DEFAULT_PORT}")
-    logger.info(f"🌐 URL: http://{DEFAULT_HOST}:{DEFAULT_PORT}")
-    logger.info(f"📁 Working Directory: {os.getcwd()}")
-    logger.info(f"🐍 Python Path: {os.sys.path[0]}")
-    logger.info("📋 API Endpoints:")
-    logger.info(f"   - GET  /models")
-    logger.info(f"   - POST /translate")
-    logger.info(f"   - POST /translate_stream")
-    logger.info(f"   - GET  /get_transcript")
-    logger.info("="*60)
+    logger.info(f"Host: {DEFAULT_HOST}")
+    logger.info(f"Port: {DEFAULT_PORT}")
+    logger.info(f"URL: http://{DEFAULT_HOST}:{DEFAULT_PORT}")
+    logger.info(f"Working Directory: {os.getcwd()}")
+    logger.info(f"Python Path: {sys.path[0]}")
+    logger.info("API Endpoints:")
+    logger.info("   - GET  /models")
+    logger.info("   - POST /translate")
+    logger.info("   - POST /translate_stream")
+    logger.info("   - GET  /get_transcript")
+    logger.info("=" * 60)
     logger.info("서버 초기화 및 uvicorn 시작...")
 
     try:
         uvicorn.run(app, host=DEFAULT_HOST, port=DEFAULT_PORT, reload=False)
     except Exception as e:
-        logger.error(f"🚨 서버 시작 실패: {e}")
+        logger.error(f"서버 시작 실패: {e}")
         raise
