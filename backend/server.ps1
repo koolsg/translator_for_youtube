@@ -30,10 +30,11 @@ if ($ShowDetails -and $Action -ne "stop") {
 # Get script directory and define common paths
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $rootDir = Split-Path $scriptDir
-$venvPython = Join-Path $scriptDir ".venv\Scripts\python.exe"
+$venvPython = Join-Path $scriptDir ".venv\\Scripts\\python.exe"
 $backendDir = $scriptDir
 $mainPath = Join-Path $backendDir "main.py"
-$pidPath = Join-Path $rootDir "app.pid"
+# Store app.pid in the backend directory (current folder)
+$pidPath = Join-Path $backendDir "app.pid"
 
 # ================================
 # Common Functions
