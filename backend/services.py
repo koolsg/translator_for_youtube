@@ -623,11 +623,15 @@ class GeminiTranslator:
                 genai.configure(api_key=selected_key)
                 model = genai.GenerativeModel(model_name)
 
-                # 번역 프롬프트 구성 (AI 소개 문구 방지)
+                # 번역 프롬프트 구성 (AI 소개 문구 방지 + 세그먼트 키 보존)
                 target_lang_name = get_language_name(target_language)
                 prompt = f"""Translate the following text to {target_lang_name} ({target_language}).
 
-IMPORTANT: Output ONLY the translated text. Do NOT add any introductions, explanations, or additional text. Do NOT include phrases like "The translation is:" or similar.
+IMPORTANT INSTRUCTIONS:
+- Some lines start with tags like [SEG-0001]. Keep every tag EXACTLY as-is in the output and leave it at the start of the same line. Do not translate, delete, move, or rename tags.
+- Translate only the text after each tag.
+- Preserve the original line breaks.
+- Output ONLY the translated text (with tags kept). Do NOT add introductions or explanations.
 
 Text to translate:
 {text}"""
@@ -686,11 +690,15 @@ Text to translate:
         genai.configure(api_key=selected_key)
         model = genai.GenerativeModel(model_name)
 
-        # 번역 프롬프트 구성 (스트리밍에서도 소개 문구 방지)
+        # 번역 프롬프트 구성 (스트리밍에서도 소개 문구 방지 + 세그먼트 키 보존)
         target_lang_name = get_language_name(target_language)
         prompt = f"""Translate the following text to {target_lang_name} ({target_language}).
 
-IMPORTANT: Output ONLY the translated text. Do NOT add any introductions, explanations, or additional text. Do NOT include phrases like "The translation is:" or similar.
+IMPORTANT INSTRUCTIONS:
+- Some lines start with tags like [SEG-0001]. Keep every tag EXACTLY as-is in the output and leave it at the start of the same line. Do not translate, delete, move, or rename tags.
+- Translate only the text after each tag.
+- Preserve the original line breaks.
+- Output ONLY the translated text (with tags kept). Do NOT add introductions or explanations.
 
 Text to translate:
 {text}"""
@@ -784,7 +792,16 @@ class OpenAITranslator:
                     messages=[
                         {
                             "role": "system",
-                            "content": f"You are a translator. Translate the given text to {target_language}.",
+                            "content": (
+                                "You are a translation assistant. "
+                                f"Translate all user text to {target_language}. "
+                                "IMPORTANT INSTRUCTIONS:\n"
+                                "- Some lines begin with tags like [SEG-0001]. Keep every tag EXACTLY as-is at the start of the same line. "
+                                "Do not translate, delete, move, or rename these tags.\n"
+                                "- Translate only the text after each tag.\n"
+                                "- Preserve all original line breaks.\n"
+                                "- Output ONLY the translated text (with the tags kept). Do NOT add introductions or explanations."
+                            ),
                         },
                         {"role": "user", "content": text},
                     ],
@@ -828,7 +845,16 @@ class OpenAITranslator:
             messages=[
                 {
                     "role": "system",
-                    "content": f"You are a translator. Translate the given text to {target_language}.",
+                    "content": (
+                        "You are a translation assistant. "
+                        f"Translate all user text to {target_language}. "
+                        "IMPORTANT INSTRUCTIONS:\n"
+                        "- Some lines begin with tags like [SEG-0001]. Keep every tag EXACTLY as-is at the start of the same line. "
+                        "Do not translate, delete, move, or rename these tags.\n"
+                        "- Translate only the text after each tag.\n"
+                        "- Preserve all original line breaks.\n"
+                        "- Output ONLY the translated text (with the tags kept). Do NOT add introductions or explanations."
+                    ),
                 },
                 {"role": "user", "content": text},
             ],
