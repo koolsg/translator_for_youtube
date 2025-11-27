@@ -202,7 +202,48 @@ function formatRateLimitMessage(detail) {
  * Provide user-friendly hints when network-level errors occur.
  */
 function buildNetworkErrorMessage(error) {
-    const detailLine = error?.message ? `원인 힌트: ${error.message}` : null;
+    const msg = error?.message || "";
+
+    // 온라인 여부 우선 확인
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        return "네트워크 오류: 현재 오프라인 상태입니다. 인터넷 연결을 확인한 뒤 다시 시도하세요.";
+    }
+
+    // 브라우저 fetch가 노출하는 대표 오류 코드 매핑
+    const codeHints = [
+        {
+            key: "ERR_NAME_NOT_RESOLVED",
+            text: "DNS 해석 실패: localhost 이름을 해석하지 못했습니다. hosts/프록시 설정을 확인하세요.",
+        },
+        {
+            key: "ERR_CONNECTION_REFUSED",
+            text: "연결 거부: 서버(http://localhost:5000)가 꺼져 있거나 포트가 다릅니다. 서버를 실행했는지 확인하세요.",
+        },
+        {
+            key: "ERR_CONNECTION_TIMED_OUT",
+            text: "연결 시간 초과: 방화벽/VPN/프록시로 요청이 막혔거나 서버 응답이 없습니다.",
+        },
+        {
+            key: "ERR_BLOCKED_BY_CLIENT",
+            text: "클라이언트 차단: Adblock/보안 확장 프로그램이 요청을 차단했습니다. 예외 등록 후 다시 시도하세요.",
+        },
+        {
+            key: "ERR_INTERNET_DISCONNECTED",
+            text: "인터넷 연결이 끊어졌습니다. 네트워크를 복구한 뒤 다시 시도하세요.",
+        },
+        {
+            key: "Failed to fetch",
+            text: "요청을 전송하지 못했습니다. 서버 주소·포트, 프록시 차단 여부를 확인하세요.",
+        },
+    ];
+
+    for (const hint of codeHints) {
+        if (msg.includes(hint.key)) {
+            return `네트워크 오류: ${hint.text}`;
+        }
+    }
+
+    const detailLine = msg ? `원인 힌트: ${msg}` : null;
     const reasons = [
         "- 서버(http://localhost:5000)가 실행 중인지 확인하세요.",
         "- VPN/프록시/기업망, 방화벽이 localhost:5000 접근을 막지 않는지 확인하세요.",
@@ -218,6 +259,19 @@ function buildNetworkErrorMessage(error) {
     ]
         .filter(Boolean)
         .join("\n");
+}
+
+/**
+ * 서버가 살아있는지 헬스 체크 (없으면 404라도 응답하면 '생존'으로 간주)
+ */
+async function checkServerHealth() {
+    try {
+        const res = await fetch("http://localhost:5000/health", { method: "GET" });
+        if (res.ok || res.status === 404) return { ok: true, status: res.status };
+        return { ok: false, status: res.status };
+    } catch (e) {
+        return { ok: false, status: null, error: e };
+    }
 }
 
 /**
@@ -563,8 +617,8 @@ function handleRegularTranslation() {
                             : detail?.message || "알 수 없는 서버 오류";
 
                     if (response.status === 400) throw new Error(`입력 오류: ${errorMessage}`);
-                    if (response.status === 500) throw new Error(`서버 내부 오류: ${errorMessage}`);
-                    throw new Error(`HTTP ${response.status}: ${errorMessage}`);
+                    // 500이나 기타 상태도 LLM/서버에서 온 원문 메시지를 그대로 전달
+                    throw new Error(errorMessage);
                 });
             }
             return response.json();
@@ -595,21 +649,30 @@ function handleRegularTranslation() {
                 updateStatus(`${inputText.length}자 번역 완료`, "success");
             }, 500);
         })
-        .catch((error) => {
+        .catch(async (error) => {
             console.error("번역 오류:", error);
             hideProgress();
             clearInterval(progressInterval);
             const errorMessage = error.message;
-            let userFriendlyMessage = "알 수 없는 오류가 발생했습니다. 다시 시도해주세요.";
-            if (error.name === "AbortError")
+            let userFriendlyMessage =
+                errorMessage || "알 수 없는 오류가 발생했습니다. 다시 시도해주세요.";
+            if (error.name === "AbortError") {
                 userFriendlyMessage = "요청 시간이 초과되었습니다. 인터넷 연결을 확인해주세요.";
-            else if (error.name === "TypeError" && error.message.includes("fetch"))
-                userFriendlyMessage = buildNetworkErrorMessage(error);
-            else if (error.name === "RateLimitError") userFriendlyMessage = errorMessage;
-            else if (errorMessage.includes("입력 오류")) userFriendlyMessage = errorMessage;
-            else if (errorMessage.includes("서버 내부 오류"))
-                userFriendlyMessage =
-                    "서버에서 번역을 처리하던 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+            } else if (error.name === "TypeError" && error.message.includes("fetch")) {
+                const health = await checkServerHealth();
+                const base = buildNetworkErrorMessage(error);
+                const healthNote = health.ok
+                    ? "(서버 헬스체크: 응답 OK)"
+                    : "(서버 헬스체크 실패: 서버 실행 여부 확인)";
+                userFriendlyMessage = `${base}\n${healthNote}`;
+            } else if (error.name === "RateLimitError") {
+                userFriendlyMessage = errorMessage;
+            } else if (errorMessage.includes("입력 오류")) {
+                userFriendlyMessage = errorMessage;
+            } else {
+                // LLM/서버 원문 메시지를 그대로 노출
+                userFriendlyMessage = errorMessage;
+            }
             outputDiv.textContent = userFriendlyMessage;
             updateOutputCharCounter(userFriendlyMessage);
             updateStatus(userFriendlyMessage, "error");
@@ -732,9 +795,17 @@ async function handleStreamTranslation() {
             outputDiv.textContent = "번역이 사용자에 의해 취소되었습니다.";
             updateStatus("번역 취소됨", "warning");
         } else {
-            let message = error.name === "RateLimitError" ? error.message : `오류: ${error.message}`;
+            let message = error.name === "RateLimitError" ? error.message : error.message;
             if (error.name === "TypeError" && error.message.includes("fetch")) {
-                message = buildNetworkErrorMessage(error);
+                const health = await checkServerHealth();
+                const base = buildNetworkErrorMessage(error);
+                const healthNote = health.ok
+                    ? "(서버 헬스체크: 응답 OK)"
+                    : "(서버 헬스체크 실패: 서버 실행 여부 확인)";
+                message = `${base}\n${healthNote}`;
+            } else {
+                // LLM/서버 원문 메시지를 그대로 노출
+                message = error.message;
             }
             outputDiv.textContent = message;
             updateOutputCharCounter(message);
