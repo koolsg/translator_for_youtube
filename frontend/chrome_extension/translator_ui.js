@@ -12,7 +12,7 @@ function cleanTranslatedText(text) {
         /^영어 번역[:：]/i,
         /^번역[:：]/i,
         /^Here's the .* translation[:：]/i,
-        /^The translation is[:：]/i
+        /^The translation is[:：]/i,
     ];
 
     // 분리자 패턴 (종종 --- 로 구분되기도 함)
@@ -22,7 +22,7 @@ function cleanTranslatedText(text) {
 
     // 소개 문구 제거
     for (const pattern of introPatterns) {
-        cleaned = cleaned.replace(pattern, '');
+        cleaned = cleaned.replace(pattern, "");
     }
 
     // --- 이후 내용이 실제 번역인 경우 추출
@@ -41,8 +41,8 @@ function cleanTranslatedText(text) {
  * 입력된 텍스트의 글자 수를 세어 화면에 표시합니다.
  */
 function updateCharCounter() {
-    const inputText = document.getElementById('input-text').innerText; // Changed from .value
-    const charCounter = document.getElementById('char-counter');
+    const inputText = document.getElementById("input-text").innerText; // Changed from .value
+    const charCounter = document.getElementById("char-counter");
     charCounter.textContent = `글자: ${inputText.length}`;
 }
 
@@ -50,10 +50,9 @@ function updateCharCounter() {
  * 번역 결과 글자 수를 화면에 표시합니다.
  */
 function updateOutputCharCounter(text = null) {
-    const counter = document.getElementById('output-char-counter');
-    const outputText = text !== null
-        ? text
-        : (document.getElementById('output-text')?.innerText ?? '');
+    const counter = document.getElementById("output-char-counter");
+    const outputText =
+        text !== null ? text : (document.getElementById("output-text")?.innerText ?? "");
     if (counter) {
         counter.textContent = `번역 글자: ${outputText.length}`;
     }
@@ -62,10 +61,10 @@ function updateOutputCharCounter(text = null) {
 /**
  * 상태 표시기를 업데이트합니다.
  */
-function updateStatus(message, type = 'info', showSpinner = false) {
-    const statusIndicator = document.getElementById('status-indicator');
-    const statusText = document.getElementById('status-text');
-    const spinner = statusIndicator.querySelector('.spinner');
+function updateStatus(message, type = "info", showSpinner = false) {
+    const statusIndicator = document.getElementById("status-indicator");
+    const statusText = document.getElementById("status-text");
+    const spinner = statusIndicator.querySelector(".spinner");
 
     // 기존 타임아웃 제거
     if (statusIndicator.hideTimeout) {
@@ -77,21 +76,21 @@ function updateStatus(message, type = 'info', showSpinner = false) {
     statusText.textContent = message;
 
     if (showSpinner) {
-        spinner.style.display = 'block';
-        statusIndicator.style.display = 'flex';
-        statusIndicator.style.opacity = '1';
+        spinner.style.display = "block";
+        statusIndicator.style.display = "flex";
+        statusIndicator.style.opacity = "1";
     } else {
-        spinner.style.display = 'none';
-        statusIndicator.style.display = type === 'info' ? 'none' : 'block';
-        statusIndicator.style.opacity = '1';
+        spinner.style.display = "none";
+        statusIndicator.style.display = type === "info" ? "none" : "block";
+        statusIndicator.style.opacity = "1";
 
         // success 타입은 3초 후 자동 fade-out
-        if (type === 'success') {
+        if (type === "success") {
             statusIndicator.hideTimeout = setTimeout(() => {
-                statusIndicator.style.opacity = '0';
+                statusIndicator.style.opacity = "0";
                 // opacity 전환 후 display none
                 setTimeout(() => {
-                    statusIndicator.style.display = 'none';
+                    statusIndicator.style.display = "none";
                 }, 300);
             }, 3000);
         }
@@ -102,25 +101,25 @@ function updateStatus(message, type = 'info', showSpinner = false) {
  * 진행 상황 모달을 표시합니다.
  */
 function showProgress(message) {
-    const progressContainer = document.getElementById('progress-container');
-    const progressText = document.getElementById('progress-text');
+    const progressContainer = document.getElementById("progress-container");
+    const progressText = document.getElementById("progress-text");
     progressText.textContent = message;
-    progressContainer.style.display = 'flex';
+    progressContainer.style.display = "flex";
 }
 
 /**
  * 진행 상황 모달을 숨깁니다.
  */
 function hideProgress() {
-    const progressContainer = document.getElementById('progress-container');
-    progressContainer.style.display = 'none';
+    const progressContainer = document.getElementById("progress-container");
+    progressContainer.style.display = "none";
 }
 
 /**
  * 진행바를 업데이트합니다.
  */
 function updateProgressBar(percentage) {
-    const progressBarFill = document.getElementById('progress-bar-fill');
+    const progressBarFill = document.getElementById("progress-bar-fill");
     progressBarFill.style.width = `${percentage}%`;
 }
 
@@ -128,9 +127,9 @@ function updateProgressBar(percentage) {
  * 선택된 API 제공자(provider)에 맞는 모델 목록을 서버에서 비동기적으로 불러옵니다.
  */
 async function loadModelsForProvider(provider, selectedModelName = null) {
-    const modelSelect = document.getElementById('model-select');
-    modelSelect.innerHTML = '<option>모델 로딩 중...</option>';
-    updateStatus('모델 목록을 불러오는 중...', 'loading', true);
+    const modelSelect = document.getElementById("model-select");
+    modelSelect.innerHTML = "<option>모델 로딩 중...</option>";
+    updateStatus("모델 목록을 불러오는 중...", "loading", true);
 
     try {
         const response = await fetch(`http://localhost:5000/models?provider=${provider}`);
@@ -139,20 +138,20 @@ async function loadModelsForProvider(provider, selectedModelName = null) {
         }
         const models = await response.json();
 
-        modelSelect.innerHTML = '';
+        modelSelect.innerHTML = "";
         if (models.length === 0) {
-            modelSelect.innerHTML = '<option>사용 가능한 모델 없음</option>';
-            updateStatus('사용 가능한 모델이 없습니다', 'error');
+            modelSelect.innerHTML = "<option>사용 가능한 모델 없음</option>";
+            updateStatus("사용 가능한 모델이 없습니다", "error");
             return;
         }
 
-        models.forEach(modelName => {
-            const option = document.createElement('option');
+        for (const modelName of models) {
+            const option = document.createElement("option");
             option.value = modelName;
-            let displayName = modelName.replace('models/', '');
+            const displayName = modelName.replace("models/", "");
             option.textContent = displayName;
             modelSelect.appendChild(option);
-        });
+        }
 
         if (selectedModelName && models.includes(selectedModelName)) {
             modelSelect.value = selectedModelName;
@@ -160,12 +159,11 @@ async function loadModelsForProvider(provider, selectedModelName = null) {
             modelSelect.value = models[0];
         }
 
-        updateStatus(`${models.length}개 모델 로드 완료`, 'success');
-
+        updateStatus(`${models.length}개 모델 로드 완료`, "success");
     } catch (error) {
-        console.error('모델 로딩 오류:', error);
-        modelSelect.innerHTML = '<option>모델 로딩 실패</option>';
-        updateStatus(error.message || '모델 목록 로딩 실패', 'error');
+        console.error("모델 로딩 오류:", error);
+        modelSelect.innerHTML = "<option>모델 로딩 실패</option>";
+        updateStatus(error.message || "모델 목록 로딩 실패", "error");
     }
 }
 
@@ -184,13 +182,15 @@ function parseErrorText(text) {
 }
 
 function formatRateLimitMessage(detail) {
-    const safeDetail = detail && typeof detail === 'object' ? detail : {};
-    const baseMessage = safeDetail.message || 'Gemini API 무료 사용량이 초과되어 번역을 진행할 수 없습니다. 잠시 후 다시 시도해주세요.';
+    const safeDetail = detail && typeof detail === "object" ? detail : {};
+    const baseMessage =
+        safeDetail.message ||
+        "Gemini API 무료 사용량이 초과되어 번역을 진행할 수 없습니다. 잠시 후 다시 시도해주세요.";
     const retryAfterSeconds = safeDetail.retry_after_seconds;
 
     if (retryAfterSeconds) {
         const rounded = Math.max(1, Math.ceil(retryAfterSeconds));
-        if (!baseMessage.includes('초')) {
+        if (!baseMessage.includes("초")) {
             return `${baseMessage} (약 ${rounded}초 후 재시도 가능)`;
         }
     }
@@ -202,39 +202,50 @@ function formatRateLimitMessage(detail) {
  * 지원되는 언어 목록을 동적으로 생성하여 드롭다운에 추가합니다.
  */
 function loadLanguageOptions() {
-    const languageSelect = document.getElementById('target-language-select');
+    const languageSelect = document.getElementById("target-language-select");
     const popularLanguages = [
-        { code: 'ko', name: '한국어' }, { code: 'en', name: '영어' }, { code: 'ja', name: '일본어' }, { code: 'zh', name: '중국어' }, { code: 'es', name: '스페인어' }, { code: 'fr', name: '프랑스어' }, { code: 'de', name: '독일어' }, { code: 'ru', name: '러시아어' }, { code: 'pt', name: '포르투갈어' }, { code: 'it', name: '이탈리아어' }
+        { code: "ko", name: "한국어" },
+        { code: "en", name: "영어" },
+        { code: "ja", name: "일본어" },
+        { code: "zh", name: "중국어" },
+        { code: "es", name: "스페인어" },
+        { code: "fr", name: "프랑스어" },
+        { code: "de", name: "독일어" },
+        { code: "ru", name: "러시아어" },
+        { code: "pt", name: "포르투갈어" },
+        { code: "it", name: "이탈리아어" },
     ];
 
-    languageSelect.innerHTML = '';
+    languageSelect.innerHTML = "";
 
-    popularLanguages.forEach(lang => {
-        const option = document.createElement('option');
+    for (const lang of popularLanguages) {
+        const option = document.createElement("option");
         option.value = lang.code;
         option.textContent = lang.name;
-        if (lang.code === 'ko') {
+        if (lang.code === "ko") {
             option.selected = true;
         }
         languageSelect.appendChild(option);
-    });
+    }
 }
 
 async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
-    const inputDiv = document.getElementById('input-text');
+    const inputDiv = document.getElementById("input-text");
     if (!inputDiv) return;
 
-    const timestampCheckbox = document.getElementById('timestamp-checkbox');
+    const timestampCheckbox = document.getElementById("timestamp-checkbox");
     const preserveTimestamps = timestampCheckbox.checked;
 
     inputDiv.innerHTML = `<div style="color: #888;">자막을 불러오는 중입니다...</div>`;
-    updateStatus('자막 로딩 중...', 'loading', true);
+    updateStatus("자막 로딩 중...", "loading", true);
 
     try {
-        const response = await fetch(`http://localhost:5000/get_transcript?video_id=${videoId}&preserve_timestamps=${preserveTimestamps}`);
+        const response = await fetch(
+            `http://localhost:5000/get_transcript?video_id=${videoId}&preserve_timestamps=${preserveTimestamps}`,
+        );
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.detail || '자막을 불러올 수 없습니다.');
+            throw new Error(errorData.detail || "자막을 불러올 수 없습니다.");
         }
         const data = await response.json();
 
@@ -242,96 +253,110 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
         const urlHTML = `<div style="font-size: 14px; color: #555; margin-bottom: 1em;">${fullUrl}</div>`;
 
         // HTML 특수 문자를 이스케이프하여 순수 텍스트로 처리되도록 합니다.
-        const transcriptContent = data.transcript.split('\n').map(line => `<div>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`).join('');
+        const transcriptContent = data.transcript
+            .split("\n")
+            .map(
+                (line) =>
+                    `<div>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`,
+            )
+            .join("");
 
         inputDiv.innerHTML = titleHTML + urlHTML + transcriptContent;
 
-        updateStatus('자막 로드 완료', 'success');
+        updateStatus("자막 로드 완료", "success");
         updateCharCounter();
         window.refreshScrollUnits?.();
     } catch (error) {
-        console.error('자막 로딩 오류:', error);
+        console.error("자막 로딩 오류:", error);
         const titleHTML = `<div style="font-size: 20px; font-weight: 500;">${videoTitle.trim()} - YouTube</div>`;
         const urlHTML = `<div style="font-size: 14px; color: #555; margin-bottom: 1em;">${fullUrl}</div>`;
         const errorHTML = `<div style="color: red;">자막을 불러오는 데 실패했습니다: ${error.message}</div>`;
         inputDiv.innerHTML = titleHTML + urlHTML + errorHTML;
-        updateStatus(`자막 로딩 실패: ${error.message}`, 'error');
+        updateStatus(`자막 로딩 실패: ${error.message}`, "error");
     }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-    let videoId = '';
-    let videoTitle = '';
-    let fullUrl = '';
+window.addEventListener("DOMContentLoaded", () => {
+    let videoId = "";
+    let videoTitle = "";
+    let fullUrl = "";
 
     try {
         const urlParams = new URLSearchParams(window.location.search);
-        videoId = urlParams.get('videoId');
-        videoTitle = urlParams.get('videoTitle');
-        fullUrl = urlParams.get('fullUrl');
+        videoId = urlParams.get("videoId");
+        videoTitle = urlParams.get("videoTitle");
+        fullUrl = urlParams.get("fullUrl");
     } catch (e) {
-        console.error('URL에서 동영상 정보를 읽는 데 실패했습니다.', e);
+        console.error("URL에서 동영상 정보를 읽는 데 실패했습니다.", e);
     }
 
-    document.getElementById('input-text').addEventListener('input', updateCharCounter);
+    document.getElementById("input-text").addEventListener("input", updateCharCounter);
     updateCharCounter();
-    updateOutputCharCounter('');
+    updateOutputCharCounter("");
     loadLanguageOptions();
 
-    const timestampCheckbox = document.getElementById('timestamp-checkbox');
-    const showTimestamp = localStorage.getItem('show_timestamp') === 'true';
+    const timestampCheckbox = document.getElementById("timestamp-checkbox");
+    const showTimestamp = localStorage.getItem("show_timestamp") === "true";
     timestampCheckbox.checked = showTimestamp;
 
-    timestampCheckbox.addEventListener('change', () => {
-        localStorage.setItem('show_timestamp', timestampCheckbox.checked);
+    timestampCheckbox.addEventListener("change", () => {
+        localStorage.setItem("show_timestamp", timestampCheckbox.checked);
         if (videoId) {
             fetchAndDisplayTranscript(videoId, videoTitle, fullUrl);
         }
     });
 
-    const streamingCheckbox = document.getElementById('streaming-checkbox');
-    const useStreaming = localStorage.getItem('use_streaming') === 'true';
+    const streamingCheckbox = document.getElementById("streaming-checkbox");
+    const useStreaming = localStorage.getItem("use_streaming") === "true";
     streamingCheckbox.checked = useStreaming;
 
-    streamingCheckbox.addEventListener('change', () => {
-        localStorage.setItem('use_streaming', streamingCheckbox.checked);
+    streamingCheckbox.addEventListener("change", () => {
+        localStorage.setItem("use_streaming", streamingCheckbox.checked);
     });
 
     if (videoId) {
         fetchAndDisplayTranscript(videoId, videoTitle, fullUrl);
     } else {
-        const inputDiv = document.getElementById('input-text');
+        const inputDiv = document.getElementById("input-text");
         const placeholderHTML = `<div style="color: #888;">번역할 내용을 입력하거나 붙여넣으세요...</div>`;
         inputDiv.innerHTML = placeholderHTML;
 
-        inputDiv.onfocus = function() {
-            if (this.innerText.trim() === '번역할 내용을 입력하거나 붙여넣으세요...') {
-                this.innerHTML = '';
-                this.style.color = 'black';
+        inputDiv.onfocus = function () {
+            if (this.innerText.trim() === "번역할 내용을 입력하거나 붙여넣으세요...") {
+                this.innerHTML = "";
+                this.style.color = "black";
             }
         };
-        inputDiv.onblur = function() {
-            if (this.innerText.trim() === '') {
+        inputDiv.onblur = function () {
+            if (this.innerText.trim() === "") {
                 this.innerHTML = placeholderHTML;
             }
         };
     }
 
-    const providerSelect = document.getElementById('provider-select');
-    const lastUsedProvider = localStorage.getItem('lastUsedProvider') || 'gemini';
-    const lastUsedModel = localStorage.getItem('lastUsedModel');
+    const providerSelect = document.getElementById("provider-select");
+    const lastUsedProvider = localStorage.getItem("lastUsedProvider") || "gemini";
+    const lastUsedModel = localStorage.getItem("lastUsedModel");
     providerSelect.value = lastUsedProvider;
 
-    providerSelect.addEventListener('change', (e) => {
+    providerSelect.addEventListener("change", (e) => {
         loadModelsForProvider(e.target.value);
-        localStorage.setItem('lastUsedProvider', e.target.value);
+        localStorage.setItem("lastUsedProvider", e.target.value);
     });
 
     loadModelsForProvider(lastUsedProvider, lastUsedModel);
+
+    // Cursor-based paragraph highlighting (seg-id 매핑)
+    document.addEventListener("selectionchange", handleSelectionHighlight);
+    document.getElementById("input-text").addEventListener("click", handleSelectionHighlight);
+    document.getElementById("output-text").addEventListener("click", handleSelectionHighlight);
+
+    // 초기 세그먼트 맵 생성
+    refreshSegMaps();
 });
 
-document.getElementById('translate-button').addEventListener('click', () => {
-    const streamingCheckbox = document.getElementById('streaming-checkbox');
+document.getElementById("translate-button").addEventListener("click", () => {
+    const streamingCheckbox = document.getElementById("streaming-checkbox");
     if (streamingCheckbox.checked) {
         handleStreamTranslation();
     } else {
@@ -339,175 +364,288 @@ document.getElementById('translate-button').addEventListener('click', () => {
     }
 });
 
-function handleRegularTranslation() {
-    const inputText = document.getElementById('input-text').innerText;
-    const outputDiv = document.getElementById('output-text');
-    const providerSelect = document.getElementById('provider-select');
-    const selectedProvider = providerSelect.value;
-    const selectedModel = document.getElementById('model-select').value;
-    const targetLanguage = document.getElementById('target-language-select').value;
-    const showNotification = document.getElementById('notification-checkbox').checked;
+// ===== SEGMENT TAGGING HELPERS =====
+const SEG_PREFIX = "[SEG-";
+const SEG_PATTERN = /^\[SEG-(\d{4})\]\s*/;
+let lastHighlightedSegId = null;
 
-    const translateButton = document.getElementById('translate-button');
-    const inputDiv = document.getElementById('input-text');
+function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function addSegmentMarkers(rawText) {
+    const lines = rawText.split("\n");
+    const segments = [];
+    const taggedLines = lines.map((line, idx) => {
+        const id = `SEG-${String(idx + 1).padStart(4, "0")}`;
+        segments.push({ id, text: line });
+        return `[${id}] ${line}`;
+    });
+    return { taggedText: taggedLines.join("\n"), segments };
+}
+
+function parseTaggedLines(taggedText) {
+    const lines = taggedText.split("\n");
+    return lines.map((line) => {
+        const match = line.match(SEG_PATTERN);
+        if (match) {
+            const id = match[1] ? `SEG-${match[1]}` : null;
+            const text = line.replace(SEG_PATTERN, "");
+            return { id, text };
+        }
+        return { id: null, text: line };
+    });
+}
+
+function renderParagraphs(element, paragraphs) {
+    element.innerHTML = paragraphs
+        .map(({ id, text }) => {
+            const safe = escapeHtml(text);
+            const segAttr = id ? ` data-seg-id="${id}"` : "";
+            return `<div class="para"${segAttr}>${safe}</div>`;
+        })
+        .join("");
+}
+
+function clearHighlights() {
+    for (const el of document.querySelectorAll(".highlighted-line")) {
+        el.classList.remove("highlighted-line");
+    }
+    lastHighlightedSegId = null;
+}
+
+function highlightBySegId(segId) {
+    if (!segId || segId === lastHighlightedSegId) return;
+    const inputEl = document.querySelector(`#input-text [data-seg-id="${segId}"]`);
+    const outputEl = document.querySelector(`#output-text [data-seg-id="${segId}"]`);
+
+    for (const el of document.querySelectorAll(".highlighted-line")) {
+        el.classList.remove("highlighted-line");
+    }
+
+    if (inputEl) inputEl.classList.add("highlighted-line");
+    if (outputEl) outputEl.classList.add("highlighted-line");
+    lastHighlightedSegId = segId;
+}
+
+const handleSelectionHighlight = debounce(() => {
+    const sel = document.getSelection();
+    if (!sel || !sel.anchorNode) return;
+
+    let node = sel.anchorNode;
+    if (node.nodeType === Node.TEXT_NODE) {
+        node = node.parentElement;
+    }
+    if (!node || !node.closest) return;
+
+    const para = node.closest(".para");
+    if (!para) return;
+
+    const container = para.closest("#input-text, #output-text");
+    if (!container) return;
+
+    const segId = para.getAttribute("data-seg-id");
+    if (!segId) return;
+
+    highlightBySegId(segId);
+}, 50);
+
+let currentInputSegments = [];
+
+function handleRegularTranslation() {
+    const inputText = document.getElementById("input-text").innerText;
+    const outputDiv = document.getElementById("output-text");
+    const providerSelect = document.getElementById("provider-select");
+    const selectedProvider = providerSelect.value;
+    const selectedModel = document.getElementById("model-select").value;
+    const targetLanguage = document.getElementById("target-language-select").value;
+    const showNotification = document.getElementById("notification-checkbox").checked;
+
+    const translateButton = document.getElementById("translate-button");
+    const inputDiv = document.getElementById("input-text");
 
     if (!inputText.trim()) {
-        updateStatus('번역할 내용을 입력해주세요', 'error');
+        updateStatus("번역할 내용을 입력해주세요", "error");
         return;
     }
 
-    if (!selectedModel || selectedModel.includes('로딩') || selectedModel.includes('없음')) {
-        updateStatus('사용 가능한 모델을 먼저 선택해주세요', 'error');
+    if (!selectedModel || selectedModel.includes("로딩") || selectedModel.includes("없음")) {
+        updateStatus("사용 가능한 모델을 먼저 선택해주세요", "error");
         return;
     }
+
+    const { taggedText, segments } = addSegmentMarkers(inputText);
+    currentInputSegments = segments;
 
     translateButton.disabled = true;
-    inputDiv.setAttribute('contenteditable', 'false');
-    updateStatus('번역 준비중...', 'loading', true);
+    inputDiv.setAttribute("contenteditable", "false");
+    updateStatus("번역 준비중...", "loading", true);
 
     let progressPhase = 0;
-    const progressSteps = [ '서버 연결중...', '요청 전송중...', 'AI 번역 처리중...', '결과 수신중...', '완료 처리중...' ];
+    const progressSteps = [
+        "서버 연결중...",
+        "요청 전송중...",
+        "AI 번역 처리중...",
+        "결과 수신중...",
+        "완료 처리중...",
+    ];
     showProgress(progressSteps[progressPhase]);
     updateProgressBar(10);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
         controller.abort();
-        updateStatus('요청이 3분을 초과하여 취소되었습니다', 'error');
+        updateStatus("요청이 3분을 초과하여 취소되었습니다", "error");
         hideProgress();
         translateButton.disabled = false;
-        inputDiv.setAttribute('contenteditable', 'true');
+        inputDiv.setAttribute("contenteditable", "true");
     }, 180000);
 
     const progressInterval = setInterval(() => {
         progressPhase = Math.min(progressPhase + 1, progressSteps.length - 1);
         showProgress(progressSteps[progressPhase]);
-        updateProgressBar(10 + (progressPhase * 20));
+        updateProgressBar(10 + progressPhase * 20);
     }, 1000);
 
-    fetch('http://localhost:5000/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+    fetch("http://localhost:5000/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            text: inputText,
+            text: taggedText,
             model: selectedModel,
             target_language: targetLanguage,
-            show_notification: showNotification
+            show_notification: showNotification,
         }),
-        signal: controller.signal
+        signal: controller.signal,
     })
-    .then(response => {
-        clearTimeout(timeoutId);
-        updateProgressBar(70);
-        showProgress('서버 응답 처리중...');
+        .then((response) => {
+            clearTimeout(timeoutId);
+            updateProgressBar(70);
+            showProgress("서버 응답 처리중...");
 
-        if (!response.ok) {
-            return parseErrorResponse(response).then(errBody => {
-                const detail = errBody.detail ?? errBody;
+            if (!response.ok) {
+                return parseErrorResponse(response).then((errBody) => {
+                    const detail = errBody.detail ?? errBody;
 
-                if (response.status === 429) {
-                    const message = formatRateLimitMessage(detail);
-                    const rateLimitError = new Error(message);
-                    rateLimitError.name = 'RateLimitError';
-                    rateLimitError.retryAfterSeconds = detail && detail.retry_after_seconds;
-                    throw rateLimitError;
-                }
+                    if (response.status === 429) {
+                        const message = formatRateLimitMessage(detail);
+                        const rateLimitError = new Error(message);
+                        rateLimitError.name = "RateLimitError";
+                        rateLimitError.retryAfterSeconds = detail?.retry_after_seconds;
+                        throw rateLimitError;
+                    }
 
-                const errorMessage = typeof detail === 'string'
-                    ? detail
-                    : (detail && detail.message) || '알 수 없는 서버 오류';
+                    const errorMessage =
+                        typeof detail === "string"
+                            ? detail
+                            : detail?.message || "알 수 없는 서버 오류";
 
-                if (response.status === 400) throw new Error(`입력 오류: ${errorMessage}`);
-                if (response.status === 500) throw new Error(`서버 내부 오류: ${errorMessage}`);
-                throw new Error(`HTTP ${response.status}: ${errorMessage}`);
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        updateProgressBar(90);
-        showProgress('결과 표시중...');
+                    if (response.status === 400) throw new Error(`입력 오류: ${errorMessage}`);
+                    if (response.status === 500) throw new Error(`서버 내부 오류: ${errorMessage}`);
+                    throw new Error(`HTTP ${response.status}: ${errorMessage}`);
+                });
+            }
+            return response.json();
+        })
+        .then((data) => {
+            updateProgressBar(90);
+            showProgress("결과 표시중...");
 
-        // AI가 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 추출
-        let cleanText = cleanTranslatedText(data.translated_text);
+            // AI가 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 추출
+            const cleanText = cleanTranslatedText(data.translated_text);
 
-        outputDiv.innerHTML = cleanText.split('\n').map(line => `<div>${line}</div>`).join('');
-        updateOutputCharCounter(cleanText);
-        window.refreshScrollUnits?.();
-        localStorage.setItem('lastUsedProvider', selectedProvider);
-        localStorage.setItem('lastUsedModel', selectedModel);
-        updateProgressBar(100);
-        setTimeout(() => {
+            // 태그 파싱 후 렌더링
+            const parsedOutput = parseTaggedLines(cleanText);
+            renderParagraphs(outputDiv, parsedOutput);
+            if (currentInputSegments.length) {
+                renderParagraphs(document.getElementById("input-text"), currentInputSegments);
+                updateCharCounter();
+            }
+
+            updateOutputCharCounter(parsedOutput.map((p) => p.text).join("\n"));
+            refreshSegMaps();
+            window.refreshScrollUnits?.();
+            localStorage.setItem("lastUsedProvider", selectedProvider);
+            localStorage.setItem("lastUsedModel", selectedModel);
+            updateProgressBar(100);
+            setTimeout(() => {
+                hideProgress();
+                updateStatus(`${inputText.length}자 번역 완료`, "success");
+            }, 500);
+        })
+        .catch((error) => {
+            console.error("번역 오류:", error);
             hideProgress();
-            updateStatus(`${inputText.length}자 번역 완료`, 'success');
-        }, 500);
-    })
-    .catch(error => {
-        console.error('번역 오류:', error);
-        hideProgress();
-        clearInterval(progressInterval);
-        let errorMessage = error.message;
-        let userFriendlyMessage = '알 수 없는 오류가 발생했습니다. 다시 시도해주세요.';
-        if (error.name === 'AbortError') userFriendlyMessage = '요청 시간이 초과되었습니다. 인터넷 연결을 확인해주세요.';
-        else if (error.name === 'TypeError' && error.message.includes('fetch')) userFriendlyMessage = '서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.';
-        else if (error.name === 'RateLimitError') userFriendlyMessage = errorMessage;
-        else if (errorMessage.includes('입력 오류')) userFriendlyMessage = errorMessage;
-        else if (errorMessage.includes('서버 내부 오류')) userFriendlyMessage = '서버에서 번역을 처리하던 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-        outputDiv.textContent = userFriendlyMessage;
-        updateOutputCharCounter(userFriendlyMessage);
-        updateStatus(userFriendlyMessage, 'error');
-    })
-    .finally(() => {
-        clearInterval(progressInterval);
-        clearTimeout(timeoutId);
-        translateButton.disabled = false;
-        inputDiv.setAttribute('contenteditable', 'true');
-        if (translateButton.disabled === false) {
-            updateStatus('준비 완료', 'success');
-        }
-    });
+            clearInterval(progressInterval);
+            const errorMessage = error.message;
+            let userFriendlyMessage = "알 수 없는 오류가 발생했습니다. 다시 시도해주세요.";
+            if (error.name === "AbortError")
+                userFriendlyMessage = "요청 시간이 초과되었습니다. 인터넷 연결을 확인해주세요.";
+            else if (error.name === "TypeError" && error.message.includes("fetch"))
+                userFriendlyMessage = "서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.";
+            else if (error.name === "RateLimitError") userFriendlyMessage = errorMessage;
+            else if (errorMessage.includes("입력 오류")) userFriendlyMessage = errorMessage;
+            else if (errorMessage.includes("서버 내부 오류"))
+                userFriendlyMessage =
+                    "서버에서 번역을 처리하던 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+            outputDiv.textContent = userFriendlyMessage;
+            updateOutputCharCounter(userFriendlyMessage);
+            updateStatus(userFriendlyMessage, "error");
+        })
+        .finally(() => {
+            clearInterval(progressInterval);
+            clearTimeout(timeoutId);
+            translateButton.disabled = false;
+            inputDiv.setAttribute("contenteditable", "true");
+            if (translateButton.disabled === false) {
+                updateStatus("준비 완료", "success");
+            }
+        });
 }
 
 async function handleStreamTranslation() {
-    const inputText = document.getElementById('input-text').innerText;
-    const outputDiv = document.getElementById('output-text');
-    const modelSelect = document.getElementById('model-select');
+    const inputText = document.getElementById("input-text").innerText;
+    const outputDiv = document.getElementById("output-text");
+    const modelSelect = document.getElementById("model-select");
     const selectedModel = modelSelect.value;
-    const targetLanguage = document.getElementById('target-language-select').value;
-    const showNotification = document.getElementById('notification-checkbox').checked;
-    const selectedProvider = document.getElementById('provider-select').value;
+    const targetLanguage = document.getElementById("target-language-select").value;
+    const showNotification = document.getElementById("notification-checkbox").checked;
+    const selectedProvider = document.getElementById("provider-select").value;
 
-    const translateButton = document.getElementById('translate-button');
-    const inputDiv = document.getElementById('input-text');
+    const translateButton = document.getElementById("translate-button");
+    const inputDiv = document.getElementById("input-text");
 
     if (!inputText.trim()) {
-        updateStatus('번역할 내용을 입력해주세요', 'error');
+        updateStatus("번역할 내용을 입력해주세요", "error");
         return;
     }
 
+    const { taggedText, segments } = addSegmentMarkers(inputText);
+    currentInputSegments = segments;
+
     translateButton.disabled = true;
-    inputDiv.setAttribute('contenteditable', 'false');
-    outputDiv.textContent = ''; // Clear previous results
-    updateOutputCharCounter('');
-    updateStatus('스트리밍 번역 중...', 'loading', true);
+    inputDiv.setAttribute("contenteditable", "false");
+    outputDiv.textContent = ""; // Clear previous results
+    updateOutputCharCounter("");
+    updateStatus("스트리밍 번역 중...", "loading", true);
 
     const controller = new AbortController();
     const abortHandler = () => controller.abort();
 
     try {
         // 탭을 닫거나 이동할 때 요청을 취소하기 위한 이벤트 리스너 추가
-        window.addEventListener('beforeunload', abortHandler);
+        window.addEventListener("beforeunload", abortHandler);
 
-        const response = await fetch('http://localhost:5000/translate_stream', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("http://localhost:5000/translate_stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                text: inputText,
+                text: taggedText,
                 model: selectedModel,
                 target_language: targetLanguage,
-                show_notification: showNotification
+                show_notification: showNotification,
             }),
-            signal: controller.signal // AbortController의 signal을 fetch에 전달
+            signal: controller.signal, // AbortController의 signal을 fetch에 전달
         });
 
         if (!response.ok) {
@@ -518,20 +656,21 @@ async function handleStreamTranslation() {
             if (response.status === 429) {
                 const message = formatRateLimitMessage(detail);
                 const rateLimitError = new Error(message);
-                rateLimitError.name = 'RateLimitError';
-                rateLimitError.retryAfterSeconds = detail && detail.retry_after_seconds;
+                rateLimitError.name = "RateLimitError";
+                rateLimitError.retryAfterSeconds = detail?.retry_after_seconds;
                 throw rateLimitError;
             }
 
-            const message = typeof detail === 'string'
-                ? detail
-                : (detail && detail.message) || '스트리밍 연결에 실패했습니다.';
+            const message =
+                typeof detail === "string"
+                    ? detail
+                    : detail?.message || "스트리밍 연결에 실패했습니다.";
             throw new Error(message);
         }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let fullResponse = '';
+        let fullResponse = "";
 
         while (true) {
             const { done, value } = await reader.read();
@@ -540,99 +679,58 @@ async function handleStreamTranslation() {
             }
             const chunk = decoder.decode(value, { stream: true });
             fullResponse += chunk;
-            outputDiv.innerHTML = fullResponse.split('\n').map(line => `<div>${line}</div>`).join(''); // 실시간 표시
+            // 중간 표시 시에도 태그를 잠시 보여줄 수 있지만, 최종 렌더에서 제거합니다.
+            outputDiv.textContent = fullResponse;
             updateOutputCharCounter(outputDiv.innerText);
         }
 
         // 스트리밍 완료 후 AI 소개 문구 정리
         const cleanText = cleanTranslatedText(fullResponse);
-        if (cleanText !== fullResponse) {
-            outputDiv.innerHTML = cleanText.split('\n').map(line => `<div>${line}</div>`).join(''); // 정제된 텍스트로 교체
+        const parsedOutput = parseTaggedLines(cleanText);
+        renderParagraphs(outputDiv, parsedOutput);
+        if (currentInputSegments.length) {
+            renderParagraphs(document.getElementById("input-text"), currentInputSegments);
+            updateCharCounter();
         }
-        updateOutputCharCounter(outputDiv.innerText);
+        updateOutputCharCounter(parsedOutput.map((p) => p.text).join("\n"));
 
+        refreshSegMaps();
         window.refreshScrollUnits?.();
 
-        updateStatus('스트리밍 완료', 'success');
+        updateStatus("스트리밍 완료", "success");
         // 마지막 사용 모델/프로바이더 저장
-        localStorage.setItem('lastUsedProvider', document.getElementById('provider-select').value);
-        localStorage.setItem('lastUsedModel', selectedModel);
+        localStorage.setItem("lastUsedProvider", document.getElementById("provider-select").value);
+        localStorage.setItem("lastUsedModel", selectedModel);
         if (showNotification) {
             // Assuming NotificationService is available or handled elsewhere
         }
-
     } catch (error) {
-        console.error('스트리밍 번역 오류:', error);
-        if (error.name === 'AbortError') {
-            outputDiv.textContent = '번역이 사용자에 의해 취소되었습니다.';
-            updateStatus('번역 취소됨', 'warning');
+        console.error("스트리밍 번역 오류:", error);
+        if (error.name === "AbortError") {
+            outputDiv.textContent = "번역이 사용자에 의해 취소되었습니다.";
+            updateStatus("번역 취소됨", "warning");
         } else {
-            const message = error.name === 'RateLimitError'
-                ? error.message
-                : `오류: ${error.message}`;
+            const message =
+                error.name === "RateLimitError" ? error.message : `오류: ${error.message}`;
             outputDiv.textContent = message;
             updateOutputCharCounter(message);
-            updateStatus(message, 'error');
+            updateStatus(message, "error");
         }
     } finally {
         // 작업이 끝나면 이벤트 리스너를 제거하여 메모리 누수 방지
-        window.removeEventListener('beforeunload', abortHandler);
+        window.removeEventListener("beforeunload", abortHandler);
         translateButton.disabled = false;
-        inputDiv.setAttribute('contenteditable', 'true');
+        inputDiv.setAttribute("contenteditable", "true");
     }
 }
 
 // 스크롤 동기화 상태 관리
 let isScrollSyncEnabled = false;
 let isScrollingProgrammatically = false;
-
-// 의미 단위로 텍스트 나누기 (줄 단위 / 블록 단위 우선)
-function splitTextIntoSemanticUnitsFromElement(element) {
-    if (!element) return [];
-
-    const children = Array.from(element.children);
-    const lines = children.length
-        ? children.map((child) => child.innerText || child.textContent || '')
-        : (element.innerText || '').split('\n');
-
-    const units = [];
-    let totalLength = 0;
-
-    for (const line of lines) {
-        const normalized = line.replace(/\s+/g, ' ').trim();
-        const start = totalLength;
-        const length = normalized.length;
-        units.push({
-            text: normalized,
-            start,
-            end: start + length,
-            length,
-        });
-        totalLength += length + 1; // 줄바꿈 보정
-    }
-
-    return units;
-}
-
-function calculateSyncScrollPosition(sourceUnits, targetUnits, sourceScrollTop, sourceScrollHeight, sourceClientHeight, targetScrollHeight, targetClientHeight) {
-    if (!sourceUnits.length || !targetUnits.length) return 0;
-
-    const currentSourceUnitIndex = findCurrentUnitIndex(sourceUnits, sourceScrollTop, sourceScrollHeight, sourceClientHeight);
-
-    // 대응하는 타겟 유닛 찾기 (1:1 매핑 가정)
-    const targetUnitIndex = Math.min(currentSourceUnitIndex, targetUnits.length - 1);
-    const targetUnit = targetUnits[targetUnitIndex];
-
-    // 타겟 유닛의 상대적 위치를 기반으로 스크롤 위치 계산
-    const totalTargetLength = targetUnits[targetUnits.length - 1].end;
-    if (totalTargetLength === 0) return 0;
-
-    const targetUnitRatio = targetUnit.start / totalTargetLength;
-    const targetScrollRange = targetScrollHeight - targetClientHeight;
-    const targetScrollTop = targetScrollRange > 0 ? targetScrollRange * targetUnitRatio : 0;
-
-    return Math.max(0, targetScrollTop);
-}
+let inputSegList = [];
+let outputSegList = [];
+let inputSegById = {};
+let outputSegById = {};
 
 // 디바운스 함수
 function debounce(func, wait) {
@@ -649,164 +747,122 @@ function debounce(func, wait) {
 
 // 스크롤 인디케이터 업데이트 함수
 function updateSyncIndicator(state) {
-    const indicator = document.getElementById('sync-indicator');
-    indicator.className = 'sync-indicator';
+    const indicator = document.getElementById("sync-indicator");
+    indicator.className = "sync-indicator";
 
-    if (state === 'active') {
-        indicator.classList.add('active');
-    } else if (state === 'syncing') {
-        indicator.classList.add('active', 'syncing');
+    if (state === "active") {
+        indicator.classList.add("active");
+    } else if (state === "syncing") {
+        indicator.classList.add("active", "syncing");
     } else {
-        // inactive - remove all classes, keep base class
+        // inactive
     }
 }
 
-function findCurrentUnitIndex(units, scrollTop, scrollHeight, clientHeight) {
-    if (!units.length) return -1;
+function refreshSegMaps() {
+    const inputText = document.getElementById("input-text");
+    const outputText = document.getElementById("output-text");
+    inputSegList = Array.from(inputText.querySelectorAll(".para[data-seg-id]"));
+    outputSegList = Array.from(outputText.querySelectorAll(".para[data-seg-id]"));
+    inputSegById = Object.fromEntries(inputSegList.map((el) => [el.dataset.segId, el]));
+    outputSegById = Object.fromEntries(outputSegList.map((el) => [el.dataset.segId, el]));
+}
 
-    const scrollRange = scrollHeight - clientHeight;
-    const scrollRatio = scrollRange > 0 ? scrollTop / scrollRange : 0;
-    const scrolledLength = (units[units.length - 1].end) * scrollRatio;
-
-    for (let i = 0; i < units.length; i++) {
-        if (units[i].start <= scrolledLength && units[i].end >= scrolledLength) {
-            return i;
+function getCurrentSegId(container, segList) {
+    if (!segList || segList.length === 0) return null;
+    const mid = container.scrollTop + container.clientHeight / 2;
+    let bestId = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const el of segList) {
+        const dist = Math.abs(el.offsetTop - mid);
+        if (dist < bestDist) {
+            bestDist = dist;
+            bestId = el.dataset.segId;
         }
     }
-
-    return units.length - 1;
+    return bestId;
 }
 
-function performScrollSync(sourceElement, targetElement, sourceUnits, targetUnits) {
-    if (!isScrollSyncEnabled || isScrollingProgrammatically) return;
-
-    updateSyncIndicator('syncing');
-
+function scrollToSeg(targetContainer, segId, options = {}) {
+    const { updateHighlight = true } = options;
+    const targetMap = targetContainer.id === "input-text" ? inputSegById : outputSegById;
+    const el = targetMap[segId];
+    if (!el) return;
     isScrollingProgrammatically = true;
-
-    const sourceScrollTop = sourceElement.scrollTop;
-    const sourceScrollHeight = sourceElement.scrollHeight;
-    const sourceClientHeight = sourceElement.clientHeight;
-    const targetScrollHeight = targetElement.scrollHeight;
-    const targetClientHeight = targetElement.clientHeight;
-
-    const targetScrollTop = calculateSyncScrollPosition(
-        sourceUnits,
-        targetUnits,
-        sourceScrollTop,
-        sourceScrollHeight,
-        sourceClientHeight,
-        targetScrollHeight,
-        targetClientHeight
-    );
-
-    targetElement.scrollTop = targetScrollTop;
-
-    const currentSourceUnitIndex = findCurrentUnitIndex(sourceUnits, sourceScrollTop, sourceScrollHeight, sourceClientHeight);
-    if (currentSourceUnitIndex !== -1) {
-        const targetUnitIndex = Math.min(currentSourceUnitIndex, targetUnits.length - 1);
-        const targetLineElement = targetElement.children[targetUnitIndex];
-
-        if (targetLineElement) {
-            const previouslyHighlighted = targetElement.querySelector('.highlighted-line');
-            if (previouslyHighlighted) {
-                previouslyHighlighted.classList.remove('highlighted-line');
-            }
-            targetLineElement.classList.add('highlighted-line');
-        }
-    }
-
+    const centerOffset = targetContainer.clientHeight / 2;
+    const targetTop = Math.max(0, el.offsetTop - centerOffset);
+    targetContainer.scrollTop = targetTop;
+    if (updateHighlight) highlightBySegId(segId);
     setTimeout(() => {
         isScrollingProgrammatically = false;
-        if (isScrollSyncEnabled) {
-            updateSyncIndicator('active');
-        }
-    }, 100);
+        if (isScrollSyncEnabled) updateSyncIndicator("active");
+    }, 50);
 }
-
-const debouncedSyncScroll = debounce((sourceElement, targetElement, sourceUnits, targetUnits) => {
-    performScrollSync(sourceElement, targetElement, sourceUnits, targetUnits);
-}, 50);
 
 // 스크롤 동기화 설정 함수
 function setupScrollSynchronization() {
-    const inputText = document.getElementById('input-text');
-    const outputText = document.getElementById('output-text');
-    const scrollSyncCheckbox = document.getElementById('scroll-sync-checkbox');
-
-    let inputUnits = [];
-    let outputUnits = [];
-
-    // 초기 text units 생성
-    function updateTextUnits() {
-        inputUnits = splitTextIntoSemanticUnitsFromElement(inputText);
-        outputUnits = splitTextIntoSemanticUnitsFromElement(outputText);
-    }
-
-    // 텍스트 변경 시 유닛 업데이트 (디바운스 적용)
-    const updateUnitsDebounced = debounce(updateTextUnits, 300);
-
-    inputText.addEventListener('input', updateUnitsDebounced);
-    inputText.addEventListener('keyup', updateUnitsDebounced);
-
-    // 초기 업데이트
-    updateTextUnits();
+    const inputText = document.getElementById("input-text");
+    const outputText = document.getElementById("output-text");
+    const scrollSyncCheckbox = document.getElementById("scroll-sync-checkbox");
 
     function refreshScrollUnits(options = {}) {
-        updateTextUnits();
-
+        refreshSegMaps();
         if (!isScrollSyncEnabled) return;
 
-        const direction = options.direction === 'outputToInput' ? 'outputToInput' : 'inputToOutput';
-
-        if (direction === 'inputToOutput') {
-            performScrollSync(inputText, outputText, inputUnits, outputUnits);
+        const direction = options.direction === "outputToInput" ? "outputToInput" : "inputToOutput";
+        if (direction === "inputToOutput") {
+            const segId = getCurrentSegId(inputText, inputSegList);
+            if (segId) scrollToSeg(outputText, segId);
         } else {
-            performScrollSync(outputText, inputText, outputUnits, inputUnits);
+            const segId = getCurrentSegId(outputText, outputSegList);
+            if (segId) scrollToSeg(inputText, segId);
         }
     }
 
     window.refreshScrollUnits = refreshScrollUnits;
 
-    // 스크롤 이벤트 리스너
-    function onInputScroll() {
-        if (!isScrollSyncEnabled) return;
-        debouncedSyncScroll(inputText, outputText, inputUnits, outputUnits);
-    }
+    // 스크롤 이벤트 리스너 (seg-id 매핑 기반)
+    const onInputScroll = debounce(() => {
+        if (!isScrollSyncEnabled || isScrollingProgrammatically) return;
+        const segId = getCurrentSegId(inputText, inputSegList);
+        if (segId) scrollToSeg(outputText, segId, { updateHighlight: false });
+    }, 30);
 
-    function onOutputScroll() {
-        if (!isScrollSyncEnabled) return;
-        debouncedSyncScroll(outputText, inputText, outputUnits, inputUnits);
-    }
+    const onOutputScroll = debounce(() => {
+        if (!isScrollSyncEnabled || isScrollingProgrammatically) return;
+        const segId = getCurrentSegId(outputText, outputSegList);
+        if (segId) scrollToSeg(inputText, segId, { updateHighlight: false });
+    }, 30);
 
-    inputText.addEventListener('scroll', onInputScroll);
-    outputText.addEventListener('scroll', onOutputScroll);
+    inputText.addEventListener("scroll", onInputScroll);
+    outputText.addEventListener("scroll", onOutputScroll);
 
     // 토글 이벤트
-    scrollSyncCheckbox.addEventListener('change', (e) => {
+    scrollSyncCheckbox.addEventListener("change", (e) => {
         isScrollSyncEnabled = e.target.checked;
-        localStorage.setItem('scroll_sync_enabled', isScrollSyncEnabled);
+        localStorage.setItem("scroll_sync_enabled", isScrollSyncEnabled);
 
         if (isScrollSyncEnabled) {
-            updateTextUnits(); // 토글 시점에 유닛 업데이트
-            updateSyncIndicator('active'); // 인디케이터 활성화
-            updateStatus('스크롤 동기화 활성화', 'success');
+            refreshSegMaps(); // 토글 시점에 맵 업데이트
+            updateSyncIndicator("active"); // 인디케이터 활성화
+            updateStatus("스크롤 동기화 활성화", "success");
         } else {
-            updateSyncIndicator('inactive'); // 인디케이터 비활성화
-            updateStatus('스크롤 동기화 비활성화', 'info');
+            updateSyncIndicator("inactive"); // 인디케이터 비활성화
+            updateStatus("스크롤 동기화 비활성화", "info");
         }
     });
 
     // 저장된 설정 로드 및 초기 상태 설정
-    const savedSetting = localStorage.getItem('scroll_sync_enabled');
-    if (savedSetting === 'true') {
+    const savedSetting = localStorage.getItem("scroll_sync_enabled");
+    if (savedSetting === "true") {
         scrollSyncCheckbox.checked = true;
         isScrollSyncEnabled = true;
-        updateSyncIndicator('active'); // 초기 로드시 인디케이터 활성화
+        updateSyncIndicator("active"); // 초기 로드시 인디케이터 활성화
+        refreshSegMaps();
     }
 }
 
 // 스크롤 동기화 초기화 (DOM 로드 후)
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener("DOMContentLoaded", () => {
     setupScrollSynchronization();
 });
