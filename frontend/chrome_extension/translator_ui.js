@@ -199,6 +199,28 @@ function formatRateLimitMessage(detail) {
 }
 
 /**
+ * Provide user-friendly hints when network-level errors occur.
+ */
+function buildNetworkErrorMessage(error) {
+    const detailLine = error?.message ? `원인 힌트: ${error.message}` : null;
+    const reasons = [
+        "- 서버(http://localhost:5000)가 실행 중인지 확인하세요.",
+        "- VPN/프록시/기업망, 방화벽이 localhost:5000 접근을 막지 않는지 확인하세요.",
+        "- 브라우저 보안 설정 또는 다른 확장 프로그램(Adblock 등)이 요청을 차단하지 않는지 확인하세요.",
+        "- 서버 포트나 프로토콜(http/https)이 변경되지 않았는지 확인하세요.",
+    ];
+
+    return [
+        "네트워크 오류로 번역 결과를 불러오지 못했습니다.",
+        detailLine,
+        "가능한 원인:",
+        ...reasons,
+    ]
+        .filter(Boolean)
+        .join("\n");
+}
+
+/**
  * 지원되는 언어 목록을 동적으로 생성하여 드롭다운에 추가합니다.
  */
 function loadLanguageOptions() {
@@ -582,7 +604,7 @@ function handleRegularTranslation() {
             if (error.name === "AbortError")
                 userFriendlyMessage = "요청 시간이 초과되었습니다. 인터넷 연결을 확인해주세요.";
             else if (error.name === "TypeError" && error.message.includes("fetch"))
-                userFriendlyMessage = "서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.";
+                userFriendlyMessage = buildNetworkErrorMessage(error);
             else if (error.name === "RateLimitError") userFriendlyMessage = errorMessage;
             else if (errorMessage.includes("입력 오류")) userFriendlyMessage = errorMessage;
             else if (errorMessage.includes("서버 내부 오류"))
@@ -710,8 +732,10 @@ async function handleStreamTranslation() {
             outputDiv.textContent = "번역이 사용자에 의해 취소되었습니다.";
             updateStatus("번역 취소됨", "warning");
         } else {
-            const message =
-                error.name === "RateLimitError" ? error.message : `오류: ${error.message}`;
+            let message = error.name === "RateLimitError" ? error.message : `오류: ${error.message}`;
+            if (error.name === "TypeError" && error.message.includes("fetch")) {
+                message = buildNetworkErrorMessage(error);
+            }
             outputDiv.textContent = message;
             updateOutputCharCounter(message);
             updateStatus(message, "error");
