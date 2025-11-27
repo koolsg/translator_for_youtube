@@ -26,6 +26,11 @@ router = APIRouter()
 config_manager = ConfigManager()
 translation_service = TranslationService(config_manager)
 
+@router.get("/health")
+def health():
+    """단순 헬스 체크 엔드포인트."""
+    return {"status": "ok"}
+
 
 @router.get("/models", response_model=List[str])
 def get_models(provider: str = Query(DEFAULT_PROVIDER, enum=["gemini", "openai"])):
