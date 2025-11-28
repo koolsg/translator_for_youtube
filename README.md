@@ -23,37 +23,57 @@ YouTube 동영상의 자막을 AI로 풀번역/요약하는 크롬 확장 프로
 ## 🏗️ 시스템 아키텍처
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Chrome        │    │     Backend      │    │     AI APIs     │
-│  Extension      │◄──►│   (FastAPI)      │◄──►│  OpenAI/Gemini  │
-│                 │    │                  │    │                 │
-│ • content.js    │    │ • /translate     │    │ • GPT Models    │
-│ • background.js │    │ • /get_transcript│    │ • Gemini Models │
-│ • translator_ui │    │ • /translate_stream │ │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────────┐    ┌─────────────────┐
+│   Chrome        │    │     Backend         │    │     AI APIs     │
+│  Extension      │◄──►│   (FastAPI)         │◄──►│  OpenAI/Gemini  │
+│                 │    │                     │    │                 │
+│ • content.js    │    │ • /translate        │    │ • GPT Models    │
+│ • background.js │    │ • /get_transcript   │    │ • Gemini Models │
+│ • translator_ui │    │ • /translate_stream │    │                 │
+└─────────────────┘    └─────────────────────┘    └─────────────────┘
 ```
 
 ## 📁 프로젝트 구조
 
 ```
-my-translator-for-youtube/
-├── backend/                     # FastAPI 백엔드 서버
-│   ├── main.py                  # 서버 엔트리 포인트
-│   ├── routes.py                # API 엔드포인트 정의
-│   ├── services.py              # 핵심 비즈니스 로직
-│   ├── models.py                # Pydantic 모델
-│   ├── validators.py            # 환경변수 검증
-│   └── notification_service.py  # Windows 알림 서비스
-├── frontend/chrome_extension/            # Chrome 확장 프로그램 (MV3)
-│   ├── manifest.json            # 확장 메타데이터
-│   ├── background.js            # 백그라운드 서비스 워커
-│   ├── content.js               # YouTube 페이지 주입 스크립트
-│   ├── translator_ui.html       # 번역 UI 인터페이스
-│   ├── translator_ui.js         # UI 로직
-│   └── icon.svg                 # 확장 아이콘
-├── start_server.ps1             # 서버 시작 스크립트
-├── stop_server.ps1              # 서버 중지 스크립트
-└── README.md
+translator_for_youtube/
+├── backend/                          # FastAPI 백엔드 서버
+│   ├── main.py                       # 서버 엔트리 포인트
+│   ├── routes.py                     # API 엔드포인트 정의
+│   ├── services.py                   # 핵심 비즈니스 로직
+│   ├── models.py                     # Pydantic 모델
+│   ├── validators.py                 # 환경변수 검증
+│   ├── notification_service.py       # Windows 알림 서비스
+│   ├── exceptions.py                 # 예외 처리
+│   ├── config.json                   # 설정 파일
+│   ├── .env.example                  # 환경변수 템플릿
+│   ├── pyproject.toml                # 프로젝트 설정
+│   ├── requirements.txt              # 의존성
+│   ├── uv.lock                       # uv 잠금 파일
+│   ├── server.ps1                    # PowerShell 서버 스크립트
+│   ├── register_startup.ps1          # 시작 프로그램 등록
+│   ├── start_server.bat              # 서버 시작 배치 파일
+│   ├── stop_server.bat               # 서버 중지 배치 파일
+│   ├── app.pid                       # 서버 PID 파일
+│   ├── tests/                        # 테스트 파일들
+│   ├── __init__.py                   # 패키지 초기화
+│   ├── translation_server.log        # 로그 파일
+│
+├── frontend/chrome_extension/        # Chrome 확장 프로그램 (MV3)
+│   ├── manifest.json                 # 확장 메타데이터
+│   ├── background.js                 # 백그라운드 서비스 워커
+│   ├── content.js                    # YouTube 페이지 주입 스크립트
+│   ├── translator_ui.html            # 번역 UI 인터페이스
+│   ├── translator_ui.js              # UI 로직
+│   ├── icon.svg                      # 확장 아이콘
+│   └── pen.svg                       # 펜 아이콘
+├── package.json                      # Node.js 패키지 설정
+├── package-lock.json                 # NPM 잠금 파일
+├── biome.json                        # 코드 포매터 설정
+├── .gitignore                        # Git 무시 파일
+├── image.png                         # 이미지 파일
+├── image-2.png                       # 두 번째 이미지 파일
+├── README.md                         # 프로젝트 문서
 ```
 
 ## 🛠️ 기술 스택
@@ -87,8 +107,8 @@ my-translator-for-youtube/
 ### 1. 저장소 클론 및 환경설정
 
 ```bash
-git clone <repository-url>
-cd my-translator-for-youtube
+git clone https://github.com/koolsg/translator_for_youtube.git
+cd translator_for_youtube
 ```
 
 ### 2. 가상환경 생성 및 패키지 설치
@@ -128,11 +148,8 @@ OPENAI_API_KEY=your_openai_api_key_here
 ### 4. 서버 실행
 
 ```powershell
-# 루트 디렉토리로 이동
-cd ..
-
 # 서버 실행 스크립트
-.\start_server.bat
+.\backend\start_server.bat
 ```
 
 성공적으로 실행되면 `http://localhost:5000`에서 API 서버가 시작됩니다. 프런트 확장 프로그램은 이 주소로 통신합니다.
