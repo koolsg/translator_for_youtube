@@ -17,7 +17,7 @@
     ],
     "web_accessible_resources": [
         {
-            "resources": ["icon.svg", "translator_ui.html", "translator_ui.js"],
+            "resources": ["icon.svg"],
             "matches": ["<all_urls>"]
         }
     ],

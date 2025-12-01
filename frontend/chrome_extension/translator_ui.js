@@ -312,6 +312,12 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
     const timestampCheckbox = document.getElementById("timestamp-checkbox");
     const preserveTimestamps = timestampCheckbox.checked;
 
+    const sanitizedTitle = escapeHtml((videoTitle ?? "").trim());
+    const titleDisplay = sanitizedTitle ? `${sanitizedTitle} - YouTube` : "YouTube";
+    const sanitizedUrl = escapeHtml(fullUrl ?? "");
+    const titleHTML = `<div style="font-size: 20px; font-weight: 500;">${titleDisplay}</div>`;
+    const urlHTML = `<div style="font-size: 14px; color: #555; margin-bottom: 1em;">${sanitizedUrl}</div>`;
+
     inputDiv.innerHTML = `<div style="color: #888;">자막을 불러오는 중입니다...</div>`;
     updateStatus("자막 로딩 중...", "loading", true);
 
@@ -324,9 +330,6 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
             throw new Error(errorData.detail || "자막을 불러올 수 없습니다.");
         }
         const data = await response.json();
-
-        const titleHTML = `<div style="font-size: 20px; font-weight: 500;">${videoTitle.trim()} - YouTube</div>`;
-        const urlHTML = `<div style="font-size: 14px; color: #555; margin-bottom: 1em;">${fullUrl}</div>`;
 
         // HTML 특수 문자를 이스케이프하여 순수 텍스트로 처리되도록 합니다.
         const transcriptContent = data.transcript
@@ -344,9 +347,8 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
         window.refreshScrollUnits?.();
     } catch (error) {
         console.error("자막 로딩 오류:", error);
-        const titleHTML = `<div style="font-size: 20px; font-weight: 500;">${videoTitle.trim()} - YouTube</div>`;
-        const urlHTML = `<div style="font-size: 14px; color: #555; margin-bottom: 1em;">${fullUrl}</div>`;
-        const errorHTML = `<div style="color: red;">자막을 불러오는 데 실패했습니다: ${error.message}</div>`;
+        const safeErrorMessage = escapeHtml(error.message || "");
+        const errorHTML = `<div style="color: red;">자막을 불러오는 데 실패했습니다: ${safeErrorMessage}</div>`;
         inputDiv.innerHTML = titleHTML + urlHTML + errorHTML;
         updateStatus(`자막 로딩 실패: ${error.message}`, "error");
     }
@@ -583,6 +585,8 @@ function handleRegularTranslation() {
         updateProgressBar(10 + progressPhase * 20);
     }, 1000);
 
+    let translationSucceeded = false;
+
     fetch("http://localhost:5000/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -630,7 +634,6 @@ function handleRegularTranslation() {
             // AI가 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 추출
             const cleanText = cleanTranslatedText(data.translated_text);
 
-            // 태그 파싱 후 렌더링
             const parsedOutput = parseTaggedLines(cleanText);
             renderParagraphs(outputDiv, parsedOutput);
             if (currentInputSegments.length) {
@@ -643,6 +646,7 @@ function handleRegularTranslation() {
             window.refreshScrollUnits?.();
             localStorage.setItem("lastUsedProvider", selectedProvider);
             localStorage.setItem("lastUsedModel", selectedModel);
+            translationSucceeded = true;
             updateProgressBar(100);
             setTimeout(() => {
                 hideProgress();
@@ -682,7 +686,7 @@ function handleRegularTranslation() {
             clearTimeout(timeoutId);
             translateButton.disabled = false;
             inputDiv.setAttribute("contenteditable", "true");
-            if (translateButton.disabled === false) {
+            if (translationSucceeded) {
                 updateStatus("준비 완료", "success");
             }
         });
