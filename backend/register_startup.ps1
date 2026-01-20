@@ -1,6 +1,6 @@
 $shortcut = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Python_Server.lnk"
 $target = "powershell.exe"
-$arguments = "-ExecutionPolicy Bypass -File `"$PSScriptRoot\start_server.bat`""
+$arguments = "-ExecutionPolicy Bypass -File `"$PSScriptRoot\start_server.vbs`""
 $wsh = New-Object -ComObject WScript.Shell
 $sc = $wsh.CreateShortcut($shortcut)
 $sc.TargetPath = $target
