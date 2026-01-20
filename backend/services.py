@@ -12,29 +12,15 @@ from typing import Dict, List, Optional, Any, cast
 
 from exceptions import APIKeyError, RateLimitError
 
-# AI 서비스 임포트 (상단에서 선언하여 보안 및 성능 개선)
+# AI 서비스 임포트
 try:
-    import google.generativeai as genai
+    from google import genai
 
     _HAS_GENAI = True
 except ImportError:
     _HAS_GENAI = False
     genai = None
 
-try:
-    from google.api_core import exceptions as google_api_exceptions
-
-    _HAS_GOOGLE_API_EXCEPTIONS = True
-except ImportError:
-    google_api_exceptions = None
-    _HAS_GOOGLE_API_EXCEPTIONS = False
-
-if not _HAS_GOOGLE_API_EXCEPTIONS:
-
-    class _DummyGoogleApiExceptions:
-        class ResourceExhausted(Exception): ...
-
-    google_api_exceptions = _DummyGoogleApiExceptions()  # type: ignore[assignment]
 
 try:
     from openai import OpenAI
@@ -275,42 +261,30 @@ def _parse_retry_after_seconds(message: str) -> Optional[int]:
 
 def _extract_retry_after_seconds(error: Exception) -> Optional[int]:
     """예외 객체에서 재시도 대기 시간을 추출합니다."""
-    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(
-        error, google_api_exceptions.ResourceExhausted
+    # google-genai SDK 1.x 방식
+    if (
+        _HAS_GENAI
+        and hasattr(genai, "errors")
+        and isinstance(error, genai.errors.ClientError)
     ):
-        retry_delay = getattr(error, "retry_delay", None)
-        if retry_delay:
-            try:
-                seconds_value = (
-                    retry_delay.total_seconds()
-                    if hasattr(retry_delay, "total_seconds")
-                    else float(retry_delay)
-                )
-                return max(1, int(math.ceil(seconds_value)))
-            except (TypeError, ValueError):
-                pass
-
-        retry_after_attr = getattr(error, "retry_after", None)
-        if retry_after_attr:
-            try:
-                seconds_value = (
-                    retry_after_attr.total_seconds()
-                    if hasattr(retry_after_attr, "total_seconds")
-                    else float(retry_after_attr)
-                )
-                return max(1, int(math.ceil(seconds_value)))
-            except (TypeError, ValueError):
-                pass
+        # 헤더나 에러 속성에서 retry-after 확인 (SDK 구현에 따라 다를 수 있음)
+        # 현재는 메시지 파싱으로 fallback
+        pass
 
     return _parse_retry_after_seconds(str(error))
 
 
 def _is_gemini_rate_limit_error(error: Exception) -> bool:
     """Gemini API 호출시 발생한 예외가 할당량 초과인지 확인합니다."""
-    if _HAS_GOOGLE_API_EXCEPTIONS and isinstance(
-        error, google_api_exceptions.ResourceExhausted
+    # google-genai SDK 1.x 방식: ClientError
+    if (
+        _HAS_GENAI
+        and hasattr(genai, "errors")
+        and isinstance(error, genai.errors.ClientError)
     ):
-        return True
+        # 429 Too Many Requests
+        if error.code == 429:
+            return True
 
     message = str(error).lower()
     keywords = (
@@ -421,6 +395,9 @@ def is_retryable_error(error: Exception) -> bool:
         "internal server error",
         "bad gateway",
         "gateway timeout",
+        "decode error",
+        "parsing message",
+        "rst_stream",
     ]
 
     error_msg = str(error).lower()
@@ -619,9 +596,8 @@ class GeminiTranslator:
         # 재시도 로직을 통한 안정적인 API 호출
         for attempt in range(MAX_RETRIES):
             try:
-                # Gemini API 초기화 및 설정
-                genai.configure(api_key=selected_key)
-                model = genai.GenerativeModel(model_name)
+                # Gemini API 클라이언트 초기화
+                client = genai.Client(api_key=selected_key)
 
                 # 번역 프롬프트 구성 (AI 소개 문구 방지 + 세그먼트 키 보존)
                 target_lang_name = get_language_name(target_language)
@@ -635,7 +611,9 @@ IMPORTANT INSTRUCTIONS:
 
 Text to translate:
 {text}"""
-                response = model.generate_content(prompt)
+                response = client.models.generate_content(
+                    model=model_name, contents=prompt
+                )
 
                 return response.text.strip()
 
@@ -687,8 +665,9 @@ Text to translate:
         selected_key = random.choice(api_keys)
         if not _HAS_GENAI or genai is None:
             raise RuntimeError("google-generativeai 패키지가 설치되어 있지 않습니다.")
-        genai.configure(api_key=selected_key)
-        model = genai.GenerativeModel(model_name)
+
+        # Gemini API Client 초기화
+        client = genai.Client(api_key=selected_key)
 
         # 번역 프롬프트 구성 (스트리밍에서도 소개 문구 방지 + 세그먼트 키 보존)
         target_lang_name = get_language_name(target_language)
@@ -703,35 +682,81 @@ IMPORTANT INSTRUCTIONS:
 Text to translate:
 {text}"""
 
-        try:
-            response_stream = await model.generate_content_async(prompt, stream=True)
-
-            async for chunk in response_stream:
-                # Check for prompt_feedback to avoid yielding empty or non-text chunks
-                if not chunk.prompt_feedback:
-                    yield chunk.text
-
-        except Exception as e:
-            if _is_gemini_rate_limit_error(e):
-                retry_after_seconds = _extract_retry_after_seconds(e)
-                user_message = _build_gemini_rate_limit_message(retry_after_seconds)
-                self.logger.warning(
-                    "Gemini 스트리밍 할당량 초과 감지: model=%s retry_after=%s error=%s",
-                    model_name,
-                    retry_after_seconds,
-                    e,
+        # 재시도 로직을 통한 안정적인 스트리밍 API 호출
+        for attempt in range(MAX_RETRIES):
+            has_yielded_content = False
+            try:
+                # generate_content_stream(async) - google-genai SDK 1.x 방식 (aio 사용)
+                # client.aio.models.generate_content_stream은 코루틴을 반환하며,
+                # 이를 await하면 비동기 이터레이터(AsyncIterator)를 얻습니다.
+                response_stream = await client.aio.models.generate_content_stream(
+                    model=model_name, contents=prompt
                 )
-                raise RateLimitError(
-                    user_message,
-                    provider="gemini",
-                    retry_after=retry_after_seconds,
-                    details={
-                        "retry_after_seconds": retry_after_seconds,
-                        "model": model_name,
-                        "original_error": str(e),
-                    },
-                ) from e
-            raise
+
+                async for chunk in response_stream:
+                    # chunk.text가 있고 비어있지 않은 경우에만 전송
+                    try:
+                        text_content = chunk.text
+                        if text_content:
+                            yield text_content
+                            has_yielded_content = True
+                    except (ValueError, AttributeError):
+                        # chunk.text 접근 불가 시 무시
+                        pass
+
+                # 스트리밍이 정상적으로 완료되면 루프 종료
+                if has_yielded_content:
+                    return
+                # 만약 아무것도 yield하지 않았다면, 빈 응답일 수 있으므로 (에러는 아님) 종료
+                # 하지만 너무 빨리 끝나는 경우를 대비해 로그를 남김
+                if not has_yielded_content:
+                    self.logger.warning(f"모델 {model_name}에서 빈 응답을 받았습니다.")
+                    return
+
+            except Exception as e:
+                # 이미 콘텐츠를 전송하기 시작했다면 재시도할 수 없음 (중복 전송 방지)
+                if has_yielded_content:
+                    self.logger.error(f"Gemini 스트리밍 중단 (복구 불가): {e}")
+                    raise
+
+                if _is_gemini_rate_limit_error(e):
+                    retry_after_seconds = _extract_retry_after_seconds(e)
+                    user_message = _build_gemini_rate_limit_message(retry_after_seconds)
+                    self.logger.warning(
+                        "Gemini 스트리밍 할당량 초과 감지: model=%s retry_after=%s error=%s",
+                        model_name,
+                        retry_after_seconds,
+                        e,
+                    )
+                    raise RateLimitError(
+                        user_message,
+                        provider="gemini",
+                        retry_after=retry_after_seconds,
+                        details={
+                            "retry_after_seconds": retry_after_seconds,
+                            "model": model_name,
+                            "original_error": str(e),
+                        },
+                    ) from e
+
+                # 마지막 시도가 아니면 재시도
+                if attempt < MAX_RETRIES - 1:
+                    if is_retryable_error(e):
+                        delay = calculate_retry_delay(attempt)
+                        self.logger.warning(
+                            f"Gemini 스트리밍 시도 {attempt + 1} 실패 (전송 전): {e}. "
+                            f"{delay}초 후 재시도합니다."
+                        )
+                        import asyncio
+
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        raise
+
+                # 마지막 시도에서도 실패한 경우
+                self.logger.error(f"Gemini 스트리밍 최종 실패: {e}")
+                raise
 
 
 class OpenAITranslator:
@@ -968,12 +993,13 @@ class TranslationService:
         try:
             # 유효한 API 키 검증
             api_keys = self.gemini_translator.validate_api_keys()
-            genai.configure(api_key=random.choice(api_keys))
 
             models = []
             # API에서 모델 목록을 가져와 텍스트 생성 가능한 모델만 필터링
-            for model_info in genai.list_models():
-                if "generateContent" in model_info.supported_generation_methods:
+            client = genai.Client(api_key=random.choice(api_keys))
+            for model_info in client.models.list():
+                # supported_actions에 'generateContent'가 있는 모델만 필터링
+                if "generateContent" in (model_info.supported_actions or []):
                     models.append(model_info.name)
             return models
 
