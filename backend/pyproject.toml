@@ -8,11 +8,11 @@ dependencies = [
     "uvicorn",
     "pydantic",
     "openai",
-    "google-generativeai",
     "plyer",
     "python-dotenv",
     "youtube-transcript-api",
-    "psutil"
+    "psutil",
+    "google-genai>=1.47.0",
 ]
 
 [dependency-groups]

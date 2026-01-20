@@ -2,7 +2,7 @@ fastapi
 uvicorn
 pydantic
 openai
-google-generativeai
+google-genai
 plyer
 python-dotenv
 youtube-transcript-api
