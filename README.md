@@ -11,7 +11,7 @@ YouTube 동영상의 자막을 AI로 풀번역/요약하는 크롬 확장 프로
 ## ✨ 주요 기능
 
 - 🎬 **YouTube 자막 자동 추출**: 동영상 ID를 통해 자동으로 자막 데이터를 가져옵니다
-- 🔄 **실시간 번역**: OpenAI, Google Gemini 계역만 지원
+- 🔄 **실시간 번역**: OpenAI, Google Gemini 계열 지원
 - 🌐 **다국어 지원**: 10개 이상 언어로 번역 지원
 - 🎨 **직관적인 UI**: Chrome 확장에서 바로 번역 결과를 확인
 - 📊 **타임스탬프 관리**: 자막의 시간 정보를 유지하며 표시
@@ -83,7 +83,7 @@ translator_for_youtube/
 - **FastAPI**: 고성능 REST API 프레임워크
 - **Uvicorn**: ASGI 서버
 - **OpenAI SDK**: GPT 모델 연동
-- **Google Generative AI**: Gemini 모델 연동
+- **Google Gen AI SDK**: 최신 Gemini 모델 연동 (v1.0+)
 - **youtube_transcript_api**: YouTube 동영상 자막 추출 라이브러리
 
 ### Frontend
@@ -168,7 +168,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 1. YouTube 동영상 페이지로 이동
 2. 영상 플레이어 우측 하단의 전구 아이콘 클릭
 3. 자동으로 자막 추출 및 번역 UI 표시
-4. 원하는 모델과 대상 언어 선택(Gemini, ChatGPT 등)
+4. 원하는 모델과 대상 언어 선택(Gemini, GPT 등)
 5. **"번역하기"** 버튼 클릭
 
 ### 고급 옵션
