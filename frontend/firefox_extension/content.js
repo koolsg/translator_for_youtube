@@ -13,10 +13,25 @@ if (window.hasMyTranslatorContentScript) {
             const response = await fetch(api.runtime.getURL("icon.svg"));
             if (!response.ok) throw new Error("Icon load failed");
             const svgText = await response.text();
-            button.innerHTML = svgText.replace(
-                "<svg",
-                '<svg style="fill: currentColor; display: block; margin: 0 auto; width: 24px; height: 24px;"',
-            );
+
+            // Mozilla linter warning: Unsafe assignment to innerHTML
+            // DOMParser를 사용하여 안전하게 SVG를 삽입합니다.
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
+            const svgElement = svgDoc.documentElement;
+
+            if (svgElement && svgElement.tagName.toLowerCase() === "svg") {
+                svgElement.style.fill = "currentColor";
+                svgElement.style.display = "block";
+                svgElement.style.margin = "0 auto";
+                svgElement.style.width = "24px";
+                svgElement.style.height = "24px";
+
+                button.innerHTML = ""; // 기존 내용 비움
+                button.appendChild(svgElement);
+            } else {
+                throw new Error("Invalid SVG");
+            }
         } catch (error) {
             console.error(error);
             button.textContent = "NT"; // Fallback text

@@ -128,7 +128,10 @@ function updateProgressBar(percentage) {
  */
 async function loadModelsForProvider(provider, selectedModelName = null) {
     const modelSelect = document.getElementById("model-select");
-    modelSelect.innerHTML = "<option>모델 로딩 중...</option>";
+    modelSelect.innerHTML = "";
+    const loadingOption = document.createElement("option");
+    loadingOption.textContent = "모델 로딩 중...";
+    modelSelect.appendChild(loadingOption);
     updateStatus("모델 목록을 불러오는 중...", "loading", true);
 
     try {
@@ -140,7 +143,10 @@ async function loadModelsForProvider(provider, selectedModelName = null) {
 
         modelSelect.innerHTML = "";
         if (models.length === 0) {
-            modelSelect.innerHTML = "<option>사용 가능한 모델 없음</option>";
+            modelSelect.innerHTML = "";
+            const noModelOption = document.createElement("option");
+            noModelOption.textContent = "사용 가능한 모델 없음";
+            modelSelect.appendChild(noModelOption);
             updateStatus("사용 가능한 모델이 없습니다", "error");
             return;
         }
@@ -162,7 +168,10 @@ async function loadModelsForProvider(provider, selectedModelName = null) {
         updateStatus(`${models.length}개 모델 로드 완료`, "success");
     } catch (error) {
         console.error("모델 로딩 오류:", error);
-        modelSelect.innerHTML = "<option>모델 로딩 실패</option>";
+        modelSelect.innerHTML = "";
+        const failOption = document.createElement("option");
+        failOption.textContent = "모델 로딩 실패";
+        modelSelect.appendChild(failOption);
         updateStatus(error.message || "모델 목록 로딩 실패", "error");
     }
 }
@@ -312,13 +321,28 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
     const timestampCheckbox = document.getElementById("timestamp-checkbox");
     const preserveTimestamps = timestampCheckbox.checked;
 
-    const sanitizedTitle = escapeHtml((videoTitle ?? "").trim());
-    const titleDisplay = sanitizedTitle ? `${sanitizedTitle} - YouTube` : "YouTube";
-    const sanitizedUrl = escapeHtml(fullUrl ?? "");
-    const titleHTML = `<div style="font-size: 20px; font-weight: 500;">${titleDisplay}</div>`;
-    const urlHTML = `<div style="font-size: 14px; color: #555; margin-bottom: 1em;">${sanitizedUrl}</div>`;
+    function createHeaderInfo() {
+        const titleDisplay = (videoTitle ?? "").trim() ? `${videoTitle.trim()} - YouTube` : "YouTube";
+        const titleDiv = document.createElement("div");
+        titleDiv.style.fontSize = "20px";
+        titleDiv.style.fontWeight = "500";
+        titleDiv.textContent = titleDisplay;
 
-    inputDiv.innerHTML = `<div style="color: #888;">자막을 불러오는 중입니다...</div>`;
+        const urlDiv = document.createElement("div");
+        urlDiv.style.fontSize = "14px";
+        urlDiv.style.color = "#555";
+        urlDiv.style.marginBottom = "1em";
+        urlDiv.textContent = fullUrl ?? "";
+
+        return [titleDiv, urlDiv];
+    }
+
+    inputDiv.innerHTML = ""; // Clear
+    const loadingDiv = document.createElement("div");
+    loadingDiv.style.color = "#888";
+    loadingDiv.textContent = "자막을 불러오는 중입니다...";
+    inputDiv.appendChild(loadingDiv);
+
     updateStatus("자막 로딩 중...", "loading", true);
 
     try {
@@ -331,25 +355,30 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
         }
         const data = await response.json();
 
-        // HTML 특수 문자를 이스케이프하여 순수 텍스트로 처리되도록 합니다.
-        const transcriptContent = data.transcript
-            .split("\n")
-            .map(
-                (line) =>
-                    `<div>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`,
-            )
-            .join("");
+        inputDiv.innerHTML = "";
+        createHeaderInfo().forEach(el => inputDiv.appendChild(el));
 
-        inputDiv.innerHTML = titleHTML + urlHTML + transcriptContent;
+        const lines = data.transcript.split("\n");
+        for (const line of lines) {
+            const lineDiv = document.createElement("div");
+            lineDiv.textContent = line;
+            inputDiv.appendChild(lineDiv);
+        }
 
         updateStatus("자막 로드 완료", "success");
         updateCharCounter();
         window.refreshScrollUnits?.();
     } catch (error) {
         console.error("자막 로딩 오류:", error);
-        const safeErrorMessage = escapeHtml(error.message || "");
-        const errorHTML = `<div style="color: red;">자막을 불러오는 데 실패했습니다: ${safeErrorMessage}</div>`;
-        inputDiv.innerHTML = titleHTML + urlHTML + errorHTML;
+
+        inputDiv.innerHTML = "";
+        createHeaderInfo().forEach(el => inputDiv.appendChild(el));
+
+        const errorDiv = document.createElement("div");
+        errorDiv.style.color = "red";
+        errorDiv.textContent = `자막을 불러오는 데 실패했습니다: ${error.message}`;
+        inputDiv.appendChild(errorDiv);
+
         updateStatus(`자막 로딩 실패: ${error.message}`, "error");
     }
 }
@@ -396,18 +425,26 @@ window.addEventListener("DOMContentLoaded", () => {
         fetchAndDisplayTranscript(videoId, videoTitle, fullUrl);
     } else {
         const inputDiv = document.getElementById("input-text");
-        const placeholderHTML = `<div style="color: #888;">번역할 내용을 입력하거나 붙여넣으세요...</div>`;
-        inputDiv.innerHTML = placeholderHTML;
+
+        function setPlaceholder() {
+            inputDiv.innerHTML = "";
+            const placeholder = document.createElement("div");
+            placeholder.style.color = "#888";
+            placeholder.textContent = "번역할 내용을 입력하거나 붙여넣으세요...";
+            inputDiv.appendChild(placeholder);
+        }
+
+        setPlaceholder();
 
         inputDiv.onfocus = function () {
             if (this.innerText.trim() === "번역할 내용을 입력하거나 붙여넣으세요...") {
-                this.innerHTML = "";
+                this.textContent = "";
                 this.style.color = "black";
             }
         };
         inputDiv.onblur = function () {
             if (this.innerText.trim() === "") {
-                this.innerHTML = placeholderHTML;
+                setPlaceholder();
             }
         };
     }
@@ -476,13 +513,16 @@ function parseTaggedLines(taggedText) {
 }
 
 function renderParagraphs(element, paragraphs) {
-    element.innerHTML = paragraphs
-        .map(({ id, text }) => {
-            const safe = escapeHtml(text);
-            const segAttr = id ? ` data-seg-id="${id}"` : "";
-            return `<div class="para"${segAttr}>${safe}</div>`;
-        })
-        .join("");
+    element.innerHTML = ""; // Clear existing content
+    for (const { id, text } of paragraphs) {
+        const paraDiv = document.createElement("div");
+        paraDiv.className = "para";
+        if (id) {
+            paraDiv.setAttribute("data-seg-id", id);
+        }
+        paraDiv.textContent = text;
+        element.appendChild(paraDiv);
+    }
 }
 
 function clearHighlights() {
