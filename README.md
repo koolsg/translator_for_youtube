@@ -3,8 +3,9 @@
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 [![Chrome](https://img.shields.io/badge/Chrome-Extension-orange.svg)](https://developer.chrome.com/docs/extensions/)
+[![Firefox](https://img.shields.io/badge/Firefox-Addon-red.svg)](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions)
 
-YouTube 동영상의 자막을 AI로 풀번역/요약하는 크롬 확장 프로그램입니다. OpenAI GPT와 Google Gemini를 지원하며, 세그먼트 태깅·스크롤 동기화·네트워크/할당량 진단까지 포함해 로컬에서 안정적으로 사용할 수 있습니다.
+YouTube 동영상의 자막을 AI로 풀번역/요약하는 브라우저 확장 프로그램(Chrome & Firefox)입니다. OpenAI GPT와 Google Gemini를 지원하며, 세그먼트 태깅·스크롤 동기화·네트워크/할당량 진단까지 포함해 로컬에서 안정적으로 사용할 수 있습니다.
 
 ![alt text](image-2.png)
 ![alt text](image.png)
@@ -13,7 +14,7 @@ YouTube 동영상의 자막을 AI로 풀번역/요약하는 크롬 확장 프로
 - 🎬 **YouTube 자막 자동 추출**: 동영상 ID를 통해 자동으로 자막 데이터를 가져옵니다
 - 🔄 **실시간 번역**: OpenAI, Google Gemini 계열 지원
 - 🌐 **다국어 지원**: 10개 이상 언어로 번역 지원
-- 🎨 **직관적인 UI**: Chrome 확장에서 바로 번역 결과를 확인
+- 🎨 **직관적인 UI**: Chrome 및 Firefox 확장에서 바로 번역 결과를 확인
 - 📊 **타임스탬프 관리**: 자막의 시간 정보를 유지하며 표시
 - 🧭 **스크롤 동기화**: 입력/출력 세그먼트 매핑으로 양쪽 창 스크롤 동기화
 - 🪄 **세그먼트 태깅**: [SEG-XXXX] 태그 기반 문단 정렬로 커서/하이라이트 매칭
@@ -24,8 +25,8 @@ YouTube 동영상의 자막을 AI로 풀번역/요약하는 크롬 확장 프로
 
 ```
 ┌─────────────────┐    ┌─────────────────────┐    ┌─────────────────┐
-│   Chrome        │    │     Backend         │    │     AI APIs     │
-│  Extension      │◄──►│   (FastAPI)         │◄──►│  OpenAI/Gemini  │
+│ Browser Ext     │    │     Backend         │    │     AI APIs     │
+│ (Chrome/Firefox)│◄──►│   (FastAPI)         │◄──►│  OpenAI/Gemini  │
 │                 │    │                     │    │                 │
 │ • content.js    │    │ • /translate        │    │ • GPT Models    │
 │ • background.js │    │ • /get_transcript   │    │ • Gemini Models │
@@ -60,13 +61,12 @@ translator_for_youtube/
 │   ├── translation_server.log        # 로그 파일
 │
 ├── frontend/chrome_extension/        # Chrome 확장 프로그램 (MV3)
-│   ├── manifest.json                 # 확장 메타데이터
-│   ├── background.js                 # 백그라운드 서비스 워커
+│   ├── ...
+├── frontend/firefox_extension/       # Firefox 확장 프로그램 (MV3)
+│   ├── manifest.json                 # Firefox 전용 메타데이터
+│   ├── background.js                 # 백그라운드 스크립트 (Cross-browser)
 │   ├── content.js                    # YouTube 페이지 주입 스크립트
-│   ├── translator_ui.html            # 번역 UI 인터페이스
-│   ├── translator_ui.js              # UI 로직
-│   ├── icon.svg                      # 확장 아이콘
-│   └── pen.svg                       # 펜 아이콘
+│   └── ...                           # 기타 공유 리소스 (UI, Icons)
 ├── package.json                      # Node.js 패키지 설정
 ├── package-lock.json                 # NPM 잠금 파일
 ├── biome.json                        # 코드 포매터 설정
@@ -89,6 +89,7 @@ translator_for_youtube/
 ### Frontend
 - **JavaScript (ES6+)**
 - **Chrome Extensions API**: Manifest V3
+- **WebExtensions API (Firefox)**: cross-browser compatibility 지원
 - **HTML5/CSS3**: 모던 웹 표준
 
 ### DevOps
@@ -162,6 +163,12 @@ OPENAI_API_KEY=your_openai_api_key_here
 2. 우측 상단 **"개발자 모드"** 활성화
 3. **"압축해제된 확장 프로그램을 로드합니다"** 클릭
 4. `frontend\chrome_extension` 폴더 선택
+
+### Firefox 확장 프로그램 설치
+
+1. Firefox 주소창에서 `about:debugging#/runtime/this-firefox` 방문
+2. **"임시 부가 기능 로드(Load Temporary Add-on...)"** 클릭
+3. `frontend\firefox_extension\manifest.json` 파일 선택
 
 ### YouTube 동영상 번역
 
