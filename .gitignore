@@ -183,10 +183,9 @@ GEMINI.md
 youtube/
 config.json
 app.pid
-backend/api_test.py
-tests/
+
 .github/
-test_translate.py
+
 # Task files
 # tasks.json
 # tasks/
