@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-pydantic
-openai
-google-genai
-plyer
-python-dotenv
-youtube-transcript-api
-psutil

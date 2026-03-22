@@ -23,12 +23,13 @@ except ImportError:
 
 
 try:
-    from openai import OpenAI
+    from openai import OpenAI, AsyncOpenAI
 
     _HAS_OPENAI = True
 except ImportError:
     _HAS_OPENAI = False
     OpenAI = None
+    AsyncOpenAI = None
 
 # === 상수 정의 ===
 # 재시도 관련 설정
@@ -615,7 +616,8 @@ Text to translate:
                     model=model_name, contents=prompt
                 )
 
-                return response.text.strip()
+                text_content = response.text
+                return text_content.strip() if text_content else ""
 
             except Exception as e:
                 if _is_gemini_rate_limit_error(e):
@@ -863,7 +865,9 @@ class OpenAITranslator:
         if not _HAS_OPENAI or OpenAI is None:
             raise RuntimeError("openai 패키지가 설치되어 있지 않습니다.")
         api_key = self.validate_api_key()
-        client = OpenAI(api_key=api_key)
+        if AsyncOpenAI is None:
+            raise RuntimeError("AsyncOpenAI가 초기화되지 않았습니다.")
+        client = AsyncOpenAI(api_key=api_key)
 
         response_stream = await client.chat.completions.create(
             model=model_name,
@@ -985,7 +989,7 @@ class TranslationService:
 
         API 호출 실패 시 저장된 목록으로 fallback하여 안정성 확보.
         """
-        if not _HAS_GENAI:
+        if not _HAS_GENAI or genai is None:
             self.logger.error("Google Generative AI 라이브러리가 설치되지 않았습니다.")
             config = self.config_manager.get_config()
             return config.get("gemini", {}).get("available_models", [])
@@ -998,9 +1002,9 @@ class TranslationService:
             # API에서 모델 목록을 가져와 텍스트 생성 가능한 모델만 필터링
             client = genai.Client(api_key=random.choice(api_keys))
             for model_info in client.models.list():
-                # supported_actions에 'generateContent'가 있는 모델만 필터링
                 if "generateContent" in (model_info.supported_actions or []):
-                    models.append(model_info.name)
+                    if model_info.name:
+                        models.append(model_info.name)
             return models
 
         except Exception as e:

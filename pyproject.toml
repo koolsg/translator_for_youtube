@@ -1,0 +1,4 @@
+[tool.pyrefly]
+python_interpreter = "d:/Projects/local-service/backend/.venv/Scripts/python.exe"
+search_path = ["d:/Projects/local-service/backend"]
+site_package_path = ["d:/Projects/local-service/backend/.venv/Lib/site-packages"]
