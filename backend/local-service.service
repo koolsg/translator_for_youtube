@@ -1,0 +1,19 @@
+[Unit]
+Description=Local Service Translation Server
+After=network.target
+
+[Service]
+Type=forking
+# 절대 경로로 프로젝트 루트를 설정하세요
+WorkingDirectory=/mnt/ssd500/Projects/local-service/backend
+ExecStart=/mnt/ssd500/Projects/local-service/backend/server.sh start
+ExecStop=/mnt/ssd500/Projects/local-service/backend/server.sh stop
+PIDFile=/mnt/ssd500/Projects/local-service/backend/app.pid
+Restart=on-failure
+RestartSec=10
+# 5분(300초) 안에 5번 실패하면 재시작 중단 (안전장치)
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

@@ -34,6 +34,8 @@ MANIFEST
 # Virtual environments
 .env
 .venv
+.venv-linux
+.venv-windows
 env/
 venv/
 ENV/
