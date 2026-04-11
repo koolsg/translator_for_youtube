@@ -6,6 +6,7 @@ After=network.target
 Type=forking
 # 절대 경로로 프로젝트 루트를 설정하세요
 WorkingDirectory=/mnt/ssd500/Projects/local-service/backend
+Environment=VIRTUAL_ENV=/mnt/ssd500/Projects/local-service/backend/.venv-linux
 ExecStart=/mnt/ssd500/Projects/local-service/backend/server.sh start
 ExecStop=/mnt/ssd500/Projects/local-service/backend/server.sh stop
 PIDFile=/mnt/ssd500/Projects/local-service/backend/app.pid

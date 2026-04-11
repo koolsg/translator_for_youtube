@@ -16,7 +16,17 @@ from services import setup_logging
 from validators import validate_environment
 
 # 환경변수 로드: .env 파일에서 환경변수를 안전하게 불러옵니다.
-load_dotenv()
+import sys
+import os
+
+if getattr(sys, 'frozen', False):
+    # PyInstaller로 빌드된 경우
+    base_path = sys._MEIPASS
+else:
+    # 일반 파이썬 실행인 경우
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+load_dotenv(dotenv_path=os.path.join(base_path, '.env'))
 
 # 환경변수 검증을 실행하여 서버 시작 전에 문제를 방지
 validate_environment()
