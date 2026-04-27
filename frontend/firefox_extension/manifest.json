@@ -3,40 +3,22 @@
     "name": "YouTube AI Video Translator",
     "version": "0.1",
     "description": "Get transcript from YouTube video and translate it using backend AI service.",
-    "permissions": [
-        "activeTab",
-        "storage",
-        "webNavigation",
-        "scripting"
-    ],
-    "host_permissions": [
-        "https://www.youtube.com/*",
-        "http://localhost:5000/*"
-    ],
+    "permissions": ["activeTab", "storage", "webNavigation", "scripting"],
+    "host_permissions": ["https://www.youtube.com/*", "http://localhost:5000/*"],
     "background": {
-        "scripts": [
-            "background.js"
-        ]
+        "scripts": ["background.js"]
     },
     "content_scripts": [
         {
-            "matches": [
-                "*://www.youtube.com/watch*"
-            ],
-            "js": [
-                "content.js"
-            ],
+            "matches": ["*://www.youtube.com/watch*"],
+            "js": ["content.js"],
             "run_at": "document_idle"
         }
     ],
     "web_accessible_resources": [
         {
-            "resources": [
-                "icon.svg"
-            ],
-            "matches": [
-                "<all_urls>"
-            ]
+            "resources": ["icon.svg"],
+            "matches": ["<all_urls>"]
         }
     ],
     "action": {
@@ -46,9 +28,7 @@
         "gecko": {
             "id": "youtube-translator@koolsg.local",
             "data_collection_permissions": {
-                "required": [
-                    "none"
-                ]
+                "required": ["none"]
             }
         }
     }

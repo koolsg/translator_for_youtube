@@ -15,15 +15,15 @@ from routes import router
 from services import setup_logging
 from validators import validate_environment
 
-# 환경변수 로드: .env 파일에서 환경변수를 안전하게 불러옵니다.
+# 환경변수 로드: 빌드된 경우 내부 패키징된 .env를, 아닌 경우 소스 위치의 .env를 로드합니다.
 import sys
 import os
 
 if getattr(sys, 'frozen', False):
-    # PyInstaller로 빌드된 경우
+    # PyInstaller로 빌드된 경우: 내부 임시 폴더(sys._MEIPASS)에 포함된 .env만 사용
     base_path = sys._MEIPASS
 else:
-    # 일반 파이썬 실행인 경우
+    # 일반 파이썬 실행인 경우: 현재 스크립트 위치의 .env 로드
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 load_dotenv(dotenv_path=os.path.join(base_path, '.env'))

@@ -1,12 +1,12 @@
 {
-  "name": "local-service",
-  "version": "0.0.0",
-  "private": true,
-  "scripts": {
-    "lint": "biome check .",
-    "format": "biome format ."
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4"
-  }
+    "name": "local-service",
+    "version": "0.0.0",
+    "private": true,
+    "scripts": {
+        "lint": "biome check .",
+        "format": "biome format ."
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^1.9.4"
+    }
 }

@@ -322,7 +322,9 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
     const preserveTimestamps = timestampCheckbox.checked;
 
     function createHeaderInfo() {
-        const titleDisplay = (videoTitle ?? "").trim() ? `${videoTitle.trim()} - YouTube` : "YouTube";
+        const titleDisplay = (videoTitle ?? "").trim()
+            ? `${videoTitle.trim()} - YouTube`
+            : "YouTube";
         const titleDiv = document.createElement("div");
         titleDiv.style.fontSize = "20px";
         titleDiv.style.fontWeight = "500";
@@ -356,7 +358,9 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
         const data = await response.json();
 
         inputDiv.innerHTML = "";
-        createHeaderInfo().forEach(el => inputDiv.appendChild(el));
+        for (const el of createHeaderInfo()) {
+            inputDiv.appendChild(el);
+        }
 
         const lines = data.transcript.split("\n");
         for (const line of lines) {
@@ -372,7 +376,9 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
         console.error("자막 로딩 오류:", error);
 
         inputDiv.innerHTML = "";
-        createHeaderInfo().forEach(el => inputDiv.appendChild(el));
+        for (const el of createHeaderInfo()) {
+            inputDiv.appendChild(el);
+        }
 
         const errorDiv = document.createElement("div");
         errorDiv.style.color = "red";
