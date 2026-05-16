@@ -20,6 +20,7 @@ SERVICE_DEST="$SYSTEMD_USER_DIR/$SERVICE_NAME.service"
 update_service_paths() {
     sed -i \
         "s|WorkingDirectory=.*|WorkingDirectory=$SCRIPT_DIR|g; \
+         s|Environment=VIRTUAL_ENV=.*|Environment=VIRTUAL_ENV=$SCRIPT_DIR/.venv|g; \
          s|ExecStart=.*|ExecStart=$SCRIPT_DIR/server.sh start|g; \
          s|ExecStop=.*|ExecStop=$SCRIPT_DIR/server.sh stop|g; \
          s|PIDFile=.*|PIDFile=$SCRIPT_DIR/app.pid|g" \

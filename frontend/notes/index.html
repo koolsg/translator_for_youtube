@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Nexus Notes — Premium local notes">
+    <title>Nexus Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <div class="logo"><i class="fas fa-meteor"></i> Nexus Notes</div>
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="search" id="searchInput" placeholder="메모 검색... (/ 또는 Ctrl+K)">
+    </div>
+    <div class="header-actions">
+        <button id="refreshBtn" title="새로고침"><i class="fas fa-sync-alt"></i></button>
+    </div>
+</header>
+
+<div class="filter-bar" id="filterBar">
+    <button class="filter-btn active" data-filter="all">전체</button>
+    <button class="filter-btn" data-filter="pinned"><i class="fas fa-thumbtack"></i> 고정됨</button>
+    <button class="filter-btn" data-filter="archived"><i class="fas fa-archive"></i> 보관됨</button>
+</div>
+
+<main>
+    <div class="input-container" id="newNoteContainer">
+        <div id="collapsedInput" class="collapsed-input" onclick="expandInput()">
+            <i class="fas fa-plus"></i> 새로운 아이디어를 기록하세요...
+        </div>
+        <div id="expandedInput" class="expanded-input">
+            <input type="text" id="noteTitle" class="input-title" placeholder="제목을 입력하세요">
+            <textarea id="noteContent" class="input-content" placeholder="무엇을 생각하고 계신가요? (마크다운 지원)"></textarea>
+            <div class="tags-input-wrap" id="newTagsWrap">
+                <input type="text" class="tag-input-field" id="newTagInput" placeholder="태그 추가 (Enter)">
+            </div>
+            <div class="input-toolbar">
+                <div class="color-palette" id="newColorPalette"></div>
+                <div class="input-actions">
+                    <button class="btn btn-ghost" onclick="collapseInput()">취소</button>
+                    <button class="btn btn-primary" onclick="saveNote()">저장하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pinnedSection" style="display:none;">
+        <div class="section-label"><i class="fas fa-thumbtack"></i> 고정됨</div>
+        <div id="pinnedGrid" class="notes-grid"></div>
+    </div>
+    <div id="othersSection" style="margin-top:1.5rem;">
+        <div id="othersLabel" class="section-label" style="display:none;">기타</div>
+        <div id="notesGrid" class="notes-grid"></div>
+    </div>
+</main>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <input type="text" id="editTitle" class="modal-title-input" placeholder="제목">
+            <button class="close-modal" onclick="closeEditModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="modalBody" class="modal-body">
+            <i class="fas fa-circle-notch fa-spin loading-spinner"></i>
+            <textarea id="editContent" class="modal-content-input" placeholder="내용을 입력하세요..."></textarea>
+        </div>
+        <div class="modal-meta-bar">
+            <button id="modalPinToggle" class="modal-pin-toggle" onclick="toggleModalPin()">
+                <i class="fas fa-thumbtack"></i> 고정
+            </button>
+            <div class="color-palette" id="modalColorPalette"></div>
+            <div class="tags-input-wrap" id="modalTagsWrap" style="flex:1; border:none; margin:0; padding:0;">
+                <input type="text" class="tag-input-field" id="modalTagInput" placeholder="태그 추가 (Enter)">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <span id="editDate" class="modal-date"></span>
+            <div style="display:flex;gap:0.75rem;">
+                <button class="btn btn-ghost" onclick="closeEditModal()">취소</button>
+                <button id="updateBtn" class="btn btn-primary">수정 완료</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/api';
+const COLORS = ['', 'coral', 'peach', 'sand', 'sage', 'fog', 'storm', 'lavender'];
+let allNotes = [];
+let currentFilter = 'all';
+let newNoteMeta = { color: null, tags: [], pinned: false };
+let editMeta = { color: null, tags: [], pinned: false, archived: false };
+let searchTimeout = null;
+
+// === Color Palette ===
+function renderPalette(containerId, selected, onChange) {
+    const c = document.getElementById(containerId);
+    c.innerHTML = '';
+    COLORS.forEach(color => {
+        const dot = document.createElement('div');
+        dot.className = 'color-dot' + (selected === (color || null) ? ' selected' : '');
+        dot.dataset.color = color;
+        dot.title = color || '기본';
+        dot.onclick = (e) => { e.stopPropagation(); onChange(color || null); };
+        c.appendChild(dot);
+    });
+}
+
+// === Tags ===
+function renderTags(wrapId, tags, onRemove) {
+    const wrap = document.getElementById(wrapId);
+    wrap.querySelectorAll('.tag-chip').forEach(el => el.remove());
+    const input = wrap.querySelector('.tag-input-field');
+    tags.forEach((tag, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.innerHTML = `${DOMPurify.sanitize(tag)} <span class="remove-tag" data-idx="${i}">×</span>`;
+        chip.querySelector('.remove-tag').onclick = (e) => { e.stopPropagation(); onRemove(i); };
+        wrap.insertBefore(chip, input);
+    });
+}
+function makeTagRemover(getTags, setTags, wrapId) {
+    return function removeTag(i) {
+        const t = [...getTags()]; t.splice(i, 1); setTags(t);
+        renderTags(wrapId, getTags(), removeTag);
+    };
+}
+function setupTagInput(inputId, getTags, setTags, wrapId) {
+    document.getElementById(inputId).addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = e.target.value.trim().replace(',', '');
+            if (val && !getTags().includes(val)) {
+                const tags = [...getTags(), val];
+                setTags(tags);
+                renderTags(wrapId, tags, makeTagRemover(getTags, setTags, wrapId));
+            }
+            e.target.value = '';
+        }
+    });
+}
+
+// === Input Controls ===
+function expandInput() {
+    document.getElementById('collapsedInput').style.display = 'none';
+    document.getElementById('expandedInput').classList.add('active');
+    document.getElementById('noteTitle').focus();
+    newNoteMeta = { color: null, tags: [], pinned: false };
+    function onNewColor(c) { newNoteMeta.color = c; renderPalette('newColorPalette', c, onNewColor); }
+    renderPalette('newColorPalette', null, onNewColor);
+    renderTags('newTagsWrap', [], ()=>{});
+}
+function collapseInput() {
+    document.getElementById('expandedInput').classList.remove('active');
+    setTimeout(() => document.getElementById('collapsedInput').style.display = 'flex', 250);
+    document.getElementById('noteTitle').value = '';
+    document.getElementById('noteContent').value = '';
+    document.getElementById('newTagInput').value = '';
+}
+
+// === Fetch & Render ===
+async function fetchNotes(isArchived = false) {
+    try {
+        document.getElementById('refreshBtn').querySelector('i').classList.add('fa-spin');
+        const res = await fetch(`${API}/notes?archived=${isArchived}`);
+        if (!res.ok) throw new Error();
+        allNotes = await res.json();
+        renderNotes();
+        setTimeout(() => document.getElementById('refreshBtn').querySelector('i').classList.remove('fa-spin'), 400);
+    } catch { document.getElementById('notesGrid').innerHTML = '<div class="empty-state">서버에 연결할 수 없습니다.</div>'; }
+}
+
+async function searchNotes(query) {
+    try {
+        const res = await fetch(`${API}/notes/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error();
+        allNotes = await res.json();
+        renderNotes();
+    } catch { document.getElementById('notesGrid').innerHTML = '<div class="empty-state">검색 중 오류가 발생했습니다.</div>'; }
+}
+
+function renderNotes() {
+    const pinnedNotes = allNotes.filter(n => n.pinned);
+    const otherNotes = allNotes.filter(n => !n.pinned);
+    const pinnedSection = document.getElementById('pinnedSection');
+    const pinnedGrid = document.getElementById('pinnedGrid');
+    const othersLabel = document.getElementById('othersLabel');
+    const grid = document.getElementById('notesGrid');
+
+    if (pinnedNotes.length > 0 && currentFilter !== 'archived') {
+        pinnedSection.style.display = 'block';
+        pinnedGrid.innerHTML = '';
+        pinnedGrid.appendChild(buildCardFragment(pinnedNotes));
+        othersLabel.style.display = otherNotes.length > 0 ? 'block' : 'none';
+    } else {
+        pinnedSection.style.display = 'none';
+        othersLabel.style.display = 'none';
+    }
+
+    grid.innerHTML = '';
+    if (otherNotes.length === 0 && pinnedNotes.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i>메모가 없습니다.</div>';
+    } else if (otherNotes.length > 0) {
+        grid.appendChild(buildCardFragment(otherNotes));
+    }
+}
+
+function buildCardFragment(notes) {
+    const frag = document.createDocumentFragment();
+    notes.forEach(note => {
+        const card = document.createElement('div');
+        card.className = 'note-card';
+        if (note.color) card.dataset.color = note.color;
+        card.onclick = (e) => { if (!e.target.closest('.icon-btn') && !e.target.closest('.pin-btn') && !e.target.closest('.note-tag')) openEditModal(note.title); };
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'note-header';
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'note-title';
+        titleDiv.textContent = note.title;
+        const pinBtn = document.createElement('button');
+        pinBtn.className = 'pin-btn' + (note.pinned ? ' pinned' : '');
+        pinBtn.innerHTML = '<i class="fas fa-thumbtack"></i>';
+        pinBtn.title = note.pinned ? '고정 해제' : '고정';
+        pinBtn.onclick = (e) => { e.stopPropagation(); togglePin(note.title, !note.pinned); };
+        header.appendChild(titleDiv);
+        header.appendChild(pinBtn);
+
+        // Body
+        const bodyDiv = document.createElement('div');
+        bodyDiv.className = 'note-body';
+        bodyDiv.textContent = note.snippet || '';
+
+        // Tags
+        const tagsDiv = document.createElement('div');
+        tagsDiv.className = 'note-tags';
+        (note.tags || []).forEach(tag => {
+            const t = document.createElement('span');
+            t.className = 'note-tag';
+            t.textContent = tag;
+            t.onclick = (e) => { e.stopPropagation(); filterByTag(tag); };
+            tagsDiv.appendChild(t);
+        });
+
+        // Footer
+        const footer = document.createElement('div');
+        footer.className = 'note-footer';
+        const dateSpan = document.createElement('span');
+        dateSpan.textContent = note.updated_at;
+        const actions = document.createElement('div');
+        actions.className = 'footer-actions';
+        const archiveBtn = document.createElement('button');
+        archiveBtn.className = 'icon-btn archive-btn';
+        archiveBtn.title = note.archived ? '보관 해제' : '보관';
+        archiveBtn.innerHTML = `<i class="fas fa-${note.archived ? 'inbox' : 'archive'}"></i>`;
+        archiveBtn.onclick = (e) => { e.stopPropagation(); toggleArchive(note.title, !note.archived); };
+        const delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn delete-btn';
+        delBtn.title = '삭제';
+        delBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        delBtn.onclick = (e) => { e.stopPropagation(); deleteNote(note.title); };
+        actions.appendChild(archiveBtn);
+        actions.appendChild(delBtn);
+        footer.appendChild(dateSpan);
+        footer.appendChild(actions);
+
+        card.appendChild(header);
+        card.appendChild(bodyDiv);
+        if (note.tags && note.tags.length) card.appendChild(tagsDiv);
+        card.appendChild(footer);
+        frag.appendChild(card);
+    });
+    return frag;
+}
+
+// === CRUD ===
+async function saveNote() {
+    const title = document.getElementById('noteTitle').value.trim() || '무제';
+    const content = document.getElementById('noteContent').value.trim();
+    if (!content) { document.getElementById('noteContent').style.border = '1px solid var(--danger)'; setTimeout(() => document.getElementById('noteContent').style.border = 'none', 2000); return; }
+    try {
+        const res = await fetch(`${API}/notes`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: newNoteMeta.pinned, color: newNoteMeta.color, tags: newNoteMeta.tags }) });
+        if (res.ok) { collapseInput(); loadCurrentView(); }
+    } catch(e) { console.error(e); }
+}
+
+async function openEditModal(title) {
+    const modal = document.getElementById('editModal');
+    const body = document.getElementById('modalBody');
+    document.getElementById('editTitle').value = title;
+    document.getElementById('editContent').value = '';
+    document.getElementById('editDate').innerText = '불러오는 중...';
+    body.classList.add('loading');
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    try {
+        const res = await fetch(`${API}/notes/${encodeURIComponent(title)}`);
+        if (!res.ok) throw new Error();
+        const n = await res.json();
+        document.getElementById('editTitle').value = n.title;
+        document.getElementById('editContent').value = n.content;
+        document.getElementById('editDate').innerText = `마지막 수정: ${n.updated_at}`;
+        editMeta = { color: n.color, tags: [...(n.tags||[])], pinned: n.pinned, archived: n.archived };
+        function onEditColor(c) { editMeta.color = c; renderPalette('modalColorPalette', c, onEditColor); }
+        renderPalette('modalColorPalette', editMeta.color, onEditColor);
+        renderTags('modalTagsWrap', editMeta.tags, makeTagRemover(() => editMeta.tags, (t) => { editMeta.tags = t; }, 'modalTagsWrap'));
+        const pinToggle = document.getElementById('modalPinToggle');
+        pinToggle.classList.toggle('active', editMeta.pinned);
+        document.getElementById('updateBtn').onclick = () => updateNote(title);
+    } catch { closeEditModal(); alert('메모를 불러오지 못했습니다.'); }
+    finally { body.classList.remove('loading'); }
+}
+function toggleModalPin() {
+    editMeta.pinned = !editMeta.pinned;
+    document.getElementById('modalPinToggle').classList.toggle('active', editMeta.pinned);
+}
+function closeEditModal() { document.getElementById('editModal').classList.remove('active'); document.body.style.overflow = ''; }
+
+async function updateNote(oldTitle) {
+    const title = document.getElementById('editTitle').value.trim();
+    const content = document.getElementById('editContent').value.trim();
+    if (!content) return;
+    try {
+        const res = await fetch(`${API}/notes/${encodeURIComponent(oldTitle)}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: editMeta.pinned, color: editMeta.color, tags: editMeta.tags, archived: editMeta.archived }) });
+        if (res.ok) { closeEditModal(); loadCurrentView(); }
+    } catch(e) { console.error(e); }
+}
+
+async function deleteNote(title) {
+    if (!confirm(`'${title}' 메모를 삭제하시겠습니까?`)) return;
+    try { const res = await fetch(`${API}/notes/${encodeURIComponent(title)}`, { method: 'DELETE' }); if (res.ok) loadCurrentView(); } catch(e) { console.error(e); }
+}
+
+async function togglePin(title, pinned) {
+    try { await fetch(`${API}/notes/${encodeURIComponent(title)}/meta`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ pinned }) }); loadCurrentView(); } catch(e) { console.error(e); }
+}
+
+async function toggleArchive(title, archived) {
+    try { await fetch(`${API}/notes/${encodeURIComponent(title)}/meta`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ archived }) }); loadCurrentView(); } catch(e) { console.error(e); }
+}
+
+function filterByTag(tag) {
+    document.getElementById('searchInput').value = tag;
+    searchNotes(tag);
+}
+
+function loadCurrentView() {
+    const q = document.getElementById('searchInput').value.trim();
+    if (q) { searchNotes(q); return; }
+    fetchNotes(currentFilter === 'archived');
+}
+
+// === Filter Bar ===
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        document.getElementById('searchInput').value = '';
+        if (currentFilter === 'archived') fetchNotes(true);
+        else if (currentFilter === 'pinned') { fetchNotes(false).then(() => { allNotes = allNotes.filter(n => n.pinned); renderNotes(); }); }
+        else fetchNotes(false);
+    });
+});
+
+// === Search ===
+document.getElementById('searchInput').addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const q = e.target.value.trim();
+    if (!q) { loadCurrentView(); return; }
+    searchTimeout = setTimeout(() => searchNotes(q), 300);
+});
+
+// === Tag Inputs Init ===
+setupTagInput('newTagInput', () => newNoteMeta.tags, (t) => { newNoteMeta.tags = t; }, 'newTagsWrap');
+setupTagInput('modalTagInput', () => editMeta.tags, (t) => { editMeta.tags = t; }, 'modalTagsWrap');
+
+// === Keyboard Shortcuts ===
+document.addEventListener('keydown', (e) => {
+    const active = document.activeElement;
+    const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+    if (e.key === 'Escape') {
+        if (document.getElementById('editModal').classList.contains('active')) closeEditModal();
+        else if (document.getElementById('expandedInput').classList.contains('active')) collapseInput();
+        else if (isTyping) active.blur();
+    }
+    if (isTyping) return;
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); expandInput(); }
+    if (e.key === '/' || (e.ctrlKey && e.key === 'k')) { e.preventDefault(); document.getElementById('searchInput').focus(); }
+});
+
+// === Init ===
+document.getElementById('refreshBtn').onclick = () => loadCurrentView();
+document.getElementById('editModal').addEventListener('click', (e) => { if (e.target === document.getElementById('editModal')) closeEditModal(); });
+function onInitColor(c) { newNoteMeta.color = c; renderPalette('newColorPalette', c, onInitColor); }
+renderPalette('newColorPalette', null, onInitColor);
+fetchNotes();
+</script>
+</body>
+</html>

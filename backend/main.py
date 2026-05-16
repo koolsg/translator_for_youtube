@@ -1,32 +1,25 @@
-"""
-Translation API Server
-
-A FastAPI-based API server for text translation using OpenAI GPT and Google Gemini models.
-"""
-
-import logging
-import uvicorn
-
-from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from routes import router
-from services import setup_logging
-from validators import validate_environment
-
-# 환경변수 로드: 빌드된 경우 내부 패키징된 .env를, 아닌 경우 소스 위치의 .env를 로드합니다.
 import sys
 import os
+import logging
+import uvicorn
+from dotenv import load_dotenv
 
+# --- 환경변수 및 로깅 초기 설정을 가장 먼저 수행합니다 ---
 if getattr(sys, 'frozen', False):
-    # PyInstaller로 빌드된 경우: 내부 임시 폴더(sys._MEIPASS)에 포함된 .env만 사용
     base_path = sys._MEIPASS
 else:
-    # 일반 파이썬 실행인 경우: 현재 스크립트 위치의 .env 로드
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 load_dotenv(dotenv_path=os.path.join(base_path, '.env'))
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from routes import router
+from notes_routes import router as notes_router
+from services import setup_logging
+from validators import validate_environment
 
 # 환경변수 검증을 실행하여 서버 시작 전에 문제를 방지
 validate_environment()
@@ -52,6 +45,18 @@ app.add_middleware(
 
 # Register API routes
 app.include_router(router)
+app.include_router(notes_router, prefix="/api")
+
+# Static files: Serve the notes frontend
+if getattr(sys, 'frozen', False):
+    # PyInstaller로 빌드된 경우: 내부 임시 폴더에 포함된 notes 폴더를 사용
+    frontend_path = os.path.join(sys._MEIPASS, "notes")
+else:
+    # 일반 실행인 경우: 소스 트리 기준 상대 경로 사용
+    frontend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "notes")
+
+if os.path.exists(frontend_path):
+    app.mount("/notes", StaticFiles(directory=frontend_path, html=True), name="notes")
 
 # --- 서버 실행 ---
 

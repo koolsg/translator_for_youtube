@@ -39,7 +39,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 MAIN_PATH="$SCRIPT_DIR/main.py"
 PID_PATH="$SCRIPT_DIR/app.pid"
-PORT=5000
+PORT=8000
 
 # ================================
 # Common Functions
