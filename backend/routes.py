@@ -52,7 +52,7 @@ def get_models(provider: str = Query(DEFAULT_PROVIDER, enum=["gemini", "openai"]
 
 
 @router.post("/translate", response_model=TranslationResponse)
-def translate_text(request: TranslationRequest):
+async def translate_text(request: TranslationRequest):
     """입력된 텍스트를 지정된 AI 모델을 사용하여 목표 언어로 번역합니다.
 
     Args:
@@ -68,7 +68,7 @@ def translate_text(request: TranslationRequest):
         )
 
         # 번역 서비스를 통해 실제 번역 작업을 수행합니다.
-        translated_text = translation_service.translate(
+        translated_text = await translation_service.translate(
             request.text, request.model, request.target_language
         )
 

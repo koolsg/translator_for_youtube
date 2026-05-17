@@ -1,6 +1,7 @@
 """Core services for the Translation API Server."""
 # pyright: reportPrivateImportUsage=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 
+import asyncio
 import json
 import logging
 import math
@@ -11,6 +12,7 @@ import sys
 from typing import Dict, List, Optional, Any, cast
 
 from exceptions import APIKeyError, RateLimitError
+from prompts import build_translation_prompt, build_openai_system_prompt
 
 # AI 서비스 임포트
 try:
@@ -43,8 +45,8 @@ API_TIMEOUT = 30.0  # 초
 MODEL_LIST_TIMEOUT = 10.0  # 초
 
 # 서버 설정
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 8000
+DEFAULT_HOST = os.getenv("API_HOST", "127.0.0.1")
+DEFAULT_PORT = int(os.getenv("API_PORT", "5000"))
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
 
 # AI 서비스 설정
@@ -557,6 +559,13 @@ class GeminiTranslator:
     def __init__(self, config_manager: ConfigManager) -> None:
         self.config_manager = config_manager
         self.logger = logging.getLogger(__name__)
+        self._clients: Dict[str, Any] = {}  # api_key → genai.Client 캐싱
+
+    def _get_client(self, api_key: str) -> Any:
+        """API 키별 Gemini 클라이언트를 캐싱하여 반환합니다."""
+        if api_key not in self._clients:
+            self._clients[api_key] = genai.Client(api_key=api_key)
+        return self._clients[api_key]
 
     def validate_api_keys(self) -> List[str]:
         """설정된 Gemini API 키들의 유효성을 검사하고 리스트로 반환합니다."""
@@ -573,7 +582,7 @@ class GeminiTranslator:
 
         return api_keys
 
-    def translate(self, text: str, model_name: str, target_language: str) -> str:
+    async def translate(self, text: str, model_name: str, target_language: str) -> str:
         """지정된 Gemini 모델을 사용하여 입력 텍스트를 목표 언어로 번역합니다.
 
         재시도 로직을 포함하여 안정적인 번역 서비스를 제공합니다.
@@ -597,21 +606,13 @@ class GeminiTranslator:
         # 재시도 로직을 통한 안정적인 API 호출
         for attempt in range(MAX_RETRIES):
             try:
-                # Gemini API 클라이언트 초기화
-                client = genai.Client(api_key=selected_key)
+                # Gemini API 클라이언트 (캐싱)
+                client = self._get_client(selected_key)
 
-                # 번역 프롬프트 구성 (AI 소개 문구 방지 + 세그먼트 키 보존)
-                target_lang_name = get_language_name(target_language)
-                prompt = f"""Translate the following text to {target_lang_name} ({target_language}).
-
-IMPORTANT INSTRUCTIONS:
-- Some lines start with tags like [SEG-0001]. Keep every tag EXACTLY as-is in the output and leave it at the start of the same line. Do not translate, delete, move, or rename tags.
-- Translate only the text after each tag.
-- Preserve the original line breaks.
-- Output ONLY the translated text (with tags kept). Do NOT add introductions or explanations.
-
-Text to translate:
-{text}"""
+                # 번역 프롬프트 구성
+                prompt = build_translation_prompt(
+                    text, get_language_name(target_language), target_language
+                )
                 response = client.models.generate_content(
                     model=model_name, contents=prompt
                 )
@@ -648,9 +649,7 @@ Text to translate:
                             f"Gemini 번역 시도 {attempt + 1} 실패: {e}. "
                             f"{delay}초 후 재시도합니다."
                         )
-                        import time
-
-                        time.sleep(delay)
+                        await asyncio.sleep(delay)
                         continue
                     else:
                         # 재시도 불가능한 에러는 즉시 발생
@@ -668,21 +667,13 @@ Text to translate:
         if not _HAS_GENAI or genai is None:
             raise RuntimeError("google-generativeai 패키지가 설치되어 있지 않습니다.")
 
-        # Gemini API Client 초기화
-        client = genai.Client(api_key=selected_key)
+        # Gemini API Client (캐싱)
+        client = self._get_client(selected_key)
 
-        # 번역 프롬프트 구성 (스트리밍에서도 소개 문구 방지 + 세그먼트 키 보존)
-        target_lang_name = get_language_name(target_language)
-        prompt = f"""Translate the following text to {target_lang_name} ({target_language}).
-
-IMPORTANT INSTRUCTIONS:
-- Some lines start with tags like [SEG-0001]. Keep every tag EXACTLY as-is in the output and leave it at the start of the same line. Do not translate, delete, move, or rename tags.
-- Translate only the text after each tag.
-- Preserve the original line breaks.
-- Output ONLY the translated text (with tags kept). Do NOT add introductions or explanations.
-
-Text to translate:
-{text}"""
+        # 번역 프롬프트 구성
+        prompt = build_translation_prompt(
+            text, get_language_name(target_language), target_language
+        )
 
         # 재시도 로직을 통한 안정적인 스트리밍 API 호출
         for attempt in range(MAX_RETRIES):
@@ -749,8 +740,6 @@ Text to translate:
                             f"Gemini 스트리밍 시도 {attempt + 1} 실패 (전송 전): {e}. "
                             f"{delay}초 후 재시도합니다."
                         )
-                        import asyncio
-
                         await asyncio.sleep(delay)
                         continue
                     else:
@@ -766,6 +755,21 @@ class OpenAITranslator:
 
     def __init__(self, config_manager: ConfigManager) -> None:
         self.config_manager = config_manager
+        self.logger = logging.getLogger(__name__)
+        self._sync_client: Any = None   # OpenAI 클라이언트 캐싱
+        self._async_client: Any = None  # AsyncOpenAI 클라이언트 캐싱
+
+    def _get_sync_client(self, api_key: str) -> Any:
+        """동기 OpenAI 클라이언트를 캐싱하여 반환합니다."""
+        if self._sync_client is None:
+            self._sync_client = OpenAI(api_key=api_key)
+        return self._sync_client
+
+    def _get_async_client(self, api_key: str) -> Any:
+        """비동기 AsyncOpenAI 클라이언트를 캐싱하여 반환합니다."""
+        if self._async_client is None:
+            self._async_client = AsyncOpenAI(api_key=api_key)
+        return self._async_client
 
     def validate_api_key(self) -> str:
         """설정에서 OpenAI API 키를 가져와 유효성을 검사합니다.
@@ -788,7 +792,7 @@ class OpenAITranslator:
 
         return api_key
 
-    def translate(self, text: str, model_name: str, target_language: str) -> str:
+    async def translate(self, text: str, model_name: str, target_language: str) -> str:
         """지정된 OpenAI 모델을 사용하여 입력 텍스트를 목표 언어로 번역합니다.
 
         재시도 로직을 포함하여 안정적인 번역 서비스를 제공합니다.
@@ -811,7 +815,7 @@ class OpenAITranslator:
         # 재시도 로직을 통한 안정적인 API 호출
         for attempt in range(MAX_RETRIES):
             try:
-                client = OpenAI(api_key=api_key)
+                client = self._get_sync_client(api_key)
 
                 # OpenAI Chat Completion API 호출
                 response = client.chat.completions.create(
@@ -819,16 +823,7 @@ class OpenAITranslator:
                     messages=[
                         {
                             "role": "system",
-                            "content": (
-                                "You are a translation assistant. "
-                                f"Translate all user text to {target_language}. "
-                                "IMPORTANT INSTRUCTIONS:\n"
-                                "- Some lines begin with tags like [SEG-0001]. Keep every tag EXACTLY as-is at the start of the same line. "
-                                "Do not translate, delete, move, or rename these tags.\n"
-                                "- Translate only the text after each tag.\n"
-                                "- Preserve all original line breaks.\n"
-                                "- Output ONLY the translated text (with the tags kept). Do NOT add introductions or explanations."
-                            ),
+                            "content": build_openai_system_prompt(target_language),
                         },
                         {"role": "user", "content": text},
                     ],
@@ -843,20 +838,18 @@ class OpenAITranslator:
                 if attempt < MAX_RETRIES - 1:
                     if is_retryable_error(e):
                         delay = calculate_retry_delay(attempt)
-                        logging.getLogger(__name__).warning(
+                        self.logger.warning(
                             f"OpenAI 번역 시도 {attempt + 1} 실패: {e}. "
                             f"{delay}초 후 재시도합니다."
                         )
-                        import time
-
-                        time.sleep(delay)
+                        await asyncio.sleep(delay)
                         continue
                     else:
                         # 재시도 불가능한 에러는 즉시 발생
                         raise
 
                 # 마지막 시도에서도 실패한 경우
-                logging.getLogger(__name__).error(f"OpenAI 번역 최종 실패: {e}")
+                self.logger.error(f"OpenAI 번역 최종 실패: {e}")
                 raise
         raise RuntimeError("OpenAI 번역이 완료되지 않았습니다.")
 
@@ -867,23 +860,14 @@ class OpenAITranslator:
         api_key = self.validate_api_key()
         if AsyncOpenAI is None:
             raise RuntimeError("AsyncOpenAI가 초기화되지 않았습니다.")
-        client = AsyncOpenAI(api_key=api_key)
+        client = self._get_async_client(api_key)
 
         response_stream = await client.chat.completions.create(
             model=model_name,
             messages=[
                 {
                     "role": "system",
-                    "content": (
-                        "You are a translation assistant. "
-                        f"Translate all user text to {target_language}. "
-                        "IMPORTANT INSTRUCTIONS:\n"
-                        "- Some lines begin with tags like [SEG-0001]. Keep every tag EXACTLY as-is at the start of the same line. "
-                        "Do not translate, delete, move, or rename these tags.\n"
-                        "- Translate only the text after each tag.\n"
-                        "- Preserve all original line breaks.\n"
-                        "- Output ONLY the translated text (with the tags kept). Do NOT add introductions or explanations."
-                    ),
+                    "content": build_openai_system_prompt(target_language),
                 },
                 {"role": "user", "content": text},
             ],
@@ -909,7 +893,7 @@ class TranslationService:
         self.openai_translator = OpenAITranslator(config_manager)
         self.logger = logging.getLogger(__name__)
 
-    def translate(self, text: str, model_name: str, target_language: str) -> str:
+    async def translate(self, text: str, model_name: str, target_language: str) -> str:
         """모델 이름에 따라 적절한 번역 제공자를 자동 선택하여 번역을 수행합니다.
 
         Args:
@@ -924,13 +908,10 @@ class TranslationService:
             ValueError: 지원하지 않는 모델인 경우
         """
         if "gemini" in model_name:
-            # Gemini 모델의 경우 Gemini 번역자 사용
-            return self.gemini_translator.translate(text, model_name, target_language)
+            return await self.gemini_translator.translate(text, model_name, target_language)
         elif "gpt" in model_name:
-            # GPT 모델의 경우 OpenAI 번역자 사용
-            return self.openai_translator.translate(text, model_name, target_language)
+            return await self.openai_translator.translate(text, model_name, target_language)
         else:
-            # 지원하지 않는 모델인 경우 오류 발생
             raise ValueError(f"지원하지 않는 모델입니다: {model_name}")
 
     async def translate_stream(self, text: str, model_name: str, target_language: str):

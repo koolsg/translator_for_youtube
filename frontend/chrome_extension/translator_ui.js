@@ -1,4 +1,10 @@
 /**
+ * 서버 주소 설정
+ * 포트를 변경할 경우 이 값과 manifest.json의 host_permissions를 함께 수정하세요.
+ */
+const SERVER_BASE_URL = "http://localhost:5000/api/translator";
+
+/**
  * AI 모델이 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 반환합니다.
  */
 function cleanTranslatedText(text) {
@@ -132,7 +138,7 @@ async function loadModelsForProvider(provider, selectedModelName = null) {
     updateStatus("모델 목록을 불러오는 중...", "loading", true);
 
     try {
-        const response = await fetch(`http://localhost:5000/models?provider=${provider}`);
+        const response = await fetch(`${SERVER_BASE_URL}/models?provider=${provider}`);
         if (!response.ok) {
             throw new Error(`${response.status}: 모델 목록을 불러올 수 없습니다.`);
         }
@@ -217,7 +223,7 @@ function buildNetworkErrorMessage(error) {
         },
         {
             key: "ERR_CONNECTION_REFUSED",
-            text: "연결 거부: 서버(http://localhost:5000)가 꺼져 있거나 포트가 다릅니다. 서버를 실행했는지 확인하세요.",
+            text: `연결 거부: 서버(${SERVER_BASE_URL})가 꺼져 있거나 포트가 다릅니다. 서버를 실행했는지 확인하세요.`,
         },
         {
             key: "ERR_CONNECTION_TIMED_OUT",
@@ -245,8 +251,8 @@ function buildNetworkErrorMessage(error) {
 
     const detailLine = msg ? `원인 힌트: ${msg}` : null;
     const reasons = [
-        "- 서버(http://localhost:5000)가 실행 중인지 확인하세요.",
-        "- VPN/프록시/기업망, 방화벽이 localhost:5000 접근을 막지 않는지 확인하세요.",
+        `- 서버(${SERVER_BASE_URL})가 실행 중인지 확인하세요.`,
+        `- VPN/프록시/기업망, 방화벽이 ${SERVER_BASE_URL} 접근을 막지 않는지 확인하세요.`,
         "- 브라우저 보안 설정 또는 다른 확장 프로그램(Adblock 등)이 요청을 차단하지 않는지 확인하세요.",
         "- 서버 포트나 프로토콜(http/https)이 변경되지 않았는지 확인하세요.",
     ];
@@ -266,7 +272,7 @@ function buildNetworkErrorMessage(error) {
  */
 async function checkServerHealth() {
     try {
-        const res = await fetch("http://localhost:5000/health", { method: "GET" });
+        const res = await fetch(`${SERVER_BASE_URL}/health`, { method: "GET" });
         if (res.ok || res.status === 404) return { ok: true, status: res.status };
         return { ok: false, status: res.status };
     } catch (e) {
@@ -323,7 +329,7 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
 
     try {
         const response = await fetch(
-            `http://localhost:5000/get_transcript?video_id=${videoId}&preserve_timestamps=${preserveTimestamps}`,
+            `${SERVER_BASE_URL}/get_transcript?video_id=${videoId}&preserve_timestamps=${preserveTimestamps}`,
         );
         if (!response.ok) {
             const errorData = await response.json();
@@ -587,7 +593,7 @@ function handleRegularTranslation() {
 
     let translationSucceeded = false;
 
-    fetch("http://localhost:5000/translate", {
+    fetch(`${SERVER_BASE_URL}/translate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -725,7 +731,7 @@ async function handleStreamTranslation() {
         // 탭을 닫거나 이동할 때 요청을 취소하기 위한 이벤트 리스너 추가
         window.addEventListener("beforeunload", abortHandler);
 
-        const response = await fetch("http://localhost:5000/translate_stream", {
+        const response = await fetch(`${SERVER_BASE_URL}/translate_stream`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

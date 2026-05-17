@@ -39,7 +39,12 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 MAIN_PATH="$SCRIPT_DIR/main.py"
 PID_PATH="$SCRIPT_DIR/app.pid"
-PORT=8000
+# .env에서 API_PORT를 읽어오고, 없으면 5000을 기본값으로 사용
+ENV_FILE="$SCRIPT_DIR/.env"
+if [[ -f "$ENV_FILE" ]]; then
+    PORT=$(grep -E '^API_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2 | tr -d ' "')
+fi
+PORT=${PORT:-5000}
 
 # ================================
 # Common Functions

@@ -10,6 +10,16 @@ from pydantic import BaseModel
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# 파일별 비동기 잊금: 동시 쓰기 요청으로인한 Race Condition 방지
+_file_locks: dict[str, asyncio.Lock] = {}
+
+
+def _get_file_lock(path: str) -> asyncio.Lock:
+    """경로별 Lock을 반환합니다. 없으면 새로 생성합니다."""
+    if path not in _file_locks:
+        _file_locks[path] = asyncio.Lock()
+    return _file_locks[path]
+
 NOTES_DIR = os.getenv("NOTES_DIR", "/home/koolsg/Documents/Obsidian Vault/My_Notebook")
 
 if not os.path.exists(NOTES_DIR):
@@ -175,7 +185,7 @@ def _read_snippet(file_path: str, max_chars: int = 150) -> tuple[str, dict]:
 # API 엔드포인트
 # =====================================================================
 
-@router.get("/notes", response_model=List[NoteSummary])
+@router.get("/", response_model=List[NoteSummary])
 async def list_notes(archived: bool = Query(False, description="보관된 메모만 표시")):
     """메모 목록을 조회합니다. pinned가 상단에 위치하고, archived 필터를 지원합니다."""
     def _get_notes():
@@ -216,7 +226,7 @@ async def list_notes(archived: bool = Query(False, description="보관된 메모
         raise HTTPException(status_code=500, detail="Failed to load notes")
 
 
-@router.get("/notes/search", response_model=List[NoteSummary])
+@router.get("/search", response_model=List[NoteSummary])
 async def search_notes(q: str = Query(..., min_length=1, description="검색어")):
     """제목과 본문을 대상으로 전문 검색합니다."""
     def _search():
@@ -258,7 +268,7 @@ async def search_notes(q: str = Query(..., min_length=1, description="검색어"
         raise HTTPException(status_code=500, detail="Failed to search notes")
 
 
-@router.get("/notes/{title}", response_model=NoteDetail)
+@router.get("/{title}", response_model=NoteDetail)
 async def get_note(title: str):
     """특정 메모의 전체 내용을 가져옵니다."""
     try:
@@ -288,7 +298,7 @@ async def get_note(title: str):
         raise HTTPException(status_code=500, detail="Failed to read note")
 
 
-@router.post("/notes")
+@router.post("/")
 async def create_note(note: NoteCreate):
     """새로운 메모를 작성합니다 (메타데이터 포함)."""
     try:
@@ -313,7 +323,8 @@ async def create_note(note: NoteCreate):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-        await asyncio.to_thread(_write)
+        async with _get_file_lock(file_path):
+            await asyncio.to_thread(_write)
         return {"status": "success", "title": safe_title}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -322,7 +333,7 @@ async def create_note(note: NoteCreate):
         raise HTTPException(status_code=500, detail="Failed to save note")
 
 
-@router.put("/notes/{title}")
+@router.put("/{title}")
 async def update_note(title: str, note: NoteCreate):
     """기존 메모를 수정합니다 (본문 + 메타데이터)."""
     try:
@@ -349,7 +360,8 @@ async def update_note(title: str, note: NoteCreate):
             if old_path != new_path:
                 os.rename(old_path, new_path)
 
-        await asyncio.to_thread(_update)
+        async with _get_file_lock(old_path):
+            await asyncio.to_thread(_update)
         return {"status": "success", "title": new_safe_title}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -360,7 +372,7 @@ async def update_note(title: str, note: NoteCreate):
         raise HTTPException(status_code=500, detail="Failed to update note")
 
 
-@router.patch("/notes/{title}/meta")
+@router.patch("/{title}/meta")
 async def update_note_meta(title: str, meta_update: MetaUpdate):
     """메모의 메타데이터만 빠르게 업데이트합니다 (본문 변경 없음)."""
     try:
@@ -385,7 +397,8 @@ async def update_note_meta(title: str, meta_update: MetaUpdate):
                 f.write(content)
             return meta
 
-        updated_meta = await asyncio.to_thread(_patch)
+        async with _get_file_lock(file_path):
+            updated_meta = await asyncio.to_thread(_patch)
         return {"status": "success", **updated_meta}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -396,7 +409,7 @@ async def update_note_meta(title: str, meta_update: MetaUpdate):
         raise HTTPException(status_code=500, detail="Failed to update metadata")
 
 
-@router.delete("/notes/{title}")
+@router.delete("/{title}")
 async def delete_note(title: str):
     """메모를 삭제합니다."""
     try:
@@ -407,7 +420,8 @@ async def delete_note(title: str):
         def _delete():
             os.remove(file_path)
 
-        await asyncio.to_thread(_delete)
+        async with _get_file_lock(file_path):
+            await asyncio.to_thread(_delete)
         return {"status": "success"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
