@@ -123,6 +123,8 @@ async def get_note(title: str):
         return await asyncio.to_thread(_read)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"메모 읽기 실패: {e}")
         raise HTTPException(status_code=500, detail="Failed to read note")

@@ -3,7 +3,7 @@
     "name": "YouTube AI Video Translator",
     "version": "0.1",
     "description": "Get transcript from YouTube video and translate it using backend AI service.",
-    "permissions": ["activeTab", "storage", "webNavigation", "scripting"],
+    "permissions": ["activeTab", "storage", "webNavigation", "scripting", "notifications"],
     "host_permissions": ["https://www.youtube.com/*", "http://localhost:5000/*"],
     "background": {
         "scripts": ["background.js"]

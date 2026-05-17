@@ -600,7 +600,6 @@ function handleRegularTranslation() {
             text: taggedText,
             model: selectedModel,
             target_language: targetLanguage,
-            show_notification: showNotification,
         }),
         signal: controller.signal,
     })
@@ -657,6 +656,14 @@ function handleRegularTranslation() {
             setTimeout(() => {
                 hideProgress();
                 updateStatus(`${inputText.length}자 번역 완료`, "success");
+                if (showNotification && chrome?.notifications) {
+                    chrome.notifications.create({
+                        type: 'basic',
+                        iconUrl: 'icon.svg',
+                        title: 'Youtube Translator',
+                        message: '요청하신 번역이 성공적으로 완료되었습니다.'
+                    });
+                }
             }, 500);
         })
         .catch(async (error) => {
@@ -738,7 +745,6 @@ async function handleStreamTranslation() {
                 text: taggedText,
                 model: selectedModel,
                 target_language: targetLanguage,
-                show_notification: showNotification,
             }),
             signal: controller.signal, // AbortController의 signal을 fetch에 전달
         });
@@ -796,8 +802,13 @@ async function handleStreamTranslation() {
         // 마지막 사용 모델/프로바이더 저장
         localStorage.setItem("lastUsedProvider", document.getElementById("provider-select").value);
         localStorage.setItem("lastUsedModel", selectedModel);
-        if (showNotification) {
-            // Assuming NotificationService is available or handled elsewhere
+        if (showNotification && chrome?.notifications) {
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'icon.svg',
+                title: 'Youtube Translator',
+                message: '요청하신 번역이 성공적으로 완료되었습니다.'
+            });
         }
     } catch (error) {
         console.error("스트리밍 번역 오류:", error);

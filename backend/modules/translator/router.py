@@ -11,7 +11,6 @@ from core.exceptions import RateLimitError
 from core.config import ConfigManager
 from core.constants import DEFAULT_PROVIDER
 from modules.translator.schemas import TranslationRequest, TranslationResponse
-from notification_service import NotificationService
 from modules.translator.service import TranslationService
 
 router = APIRouter()
@@ -40,9 +39,6 @@ async def translate_text(request: TranslationRequest):
         except Exception as e:
             logging.getLogger(__name__).warning(f"프리셋 저장 실패 (무시됨): {e}")
 
-        if request.show_notification:
-            NotificationService.send_translation_complete()
-
         return TranslationResponse(translated_text=translated_text)
     except RateLimitError as e:
         error_msg = str(e)
@@ -68,16 +64,7 @@ async def translate_stream(request: TranslationRequest):
         logging.getLogger(__name__).info(f"스트리밍 번역 요청: {request.model} 모델로 {request.target_language} 언어로")
         original_stream = translation_service.translate_stream(request.text, request.model, request.target_language)
 
-        async def notification_wrapper():
-            try:
-                async for chunk in original_stream:
-                    yield chunk
-            finally:
-                if request.show_notification:
-                    logging.getLogger(__name__).info("스트리밍 번역 완료, 알림을 전송합니다.")
-                    NotificationService.send_translation_complete()
-
-        return StreamingResponse(notification_wrapper(), media_type="text/plain")
+        return StreamingResponse(original_stream, media_type="text/plain")
 
     except RateLimitError as e:
         error_msg = str(e)

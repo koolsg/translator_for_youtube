@@ -33,7 +33,6 @@ def test_translate_endpoint(client: TestClient, mock_translation_service):
         "text": "Hello world",
         "model": "gemini-1.5-flash",
         "target_language": "ko",
-        "show_notification": False,
     }
 
     response = client.post("/translate", json=payload)

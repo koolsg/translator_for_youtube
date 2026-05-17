@@ -170,7 +170,8 @@ dev-debug.log
 .cursor/
 .taskmaster/
 .\serena
-GEMINI.md
+# GEMINI.md
+!GEMINI.md
 
 
 # ------------------------------
@@ -178,6 +179,7 @@ GEMINI.md
 # ------------------------------
 *.md
 !README.md
+!GEMINI.md
 
 # ------------------------------
 # 😎Project Specific

@@ -169,7 +169,7 @@ function collapseInput() {
 async function fetchNotes(isArchived = false) {
     try {
         document.getElementById('refreshBtn').querySelector('i').classList.add('fa-spin');
-        const res = await fetch(`${API}/notes?archived=${isArchived}`);
+        const res = await fetch(`${API}?archived=${isArchived}`);
         if (!res.ok) throw new Error();
         allNotes = await res.json();
         renderNotes();
@@ -179,7 +179,7 @@ async function fetchNotes(isArchived = false) {
 
 async function searchNotes(query) {
     try {
-        const res = await fetch(`${API}/notes/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`${API}/search?q=${encodeURIComponent(query)}`);
         if (!res.ok) throw new Error();
         allNotes = await res.json();
         renderNotes();
@@ -287,7 +287,7 @@ async function saveNote() {
     const content = document.getElementById('noteContent').value.trim();
     if (!content) { document.getElementById('noteContent').style.border = '1px solid var(--danger)'; setTimeout(() => document.getElementById('noteContent').style.border = 'none', 2000); return; }
     try {
-        const res = await fetch(`${API}/notes`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: newNoteMeta.pinned, color: newNoteMeta.color, tags: newNoteMeta.tags }) });
+        const res = await fetch(`${API}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: newNoteMeta.pinned, color: newNoteMeta.color, tags: newNoteMeta.tags }) });
         if (res.ok) { collapseInput(); loadCurrentView(); }
     } catch(e) { console.error(e); }
 }
@@ -302,7 +302,7 @@ async function openEditModal(title) {
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
     try {
-        const res = await fetch(`${API}/notes/${encodeURIComponent(title)}`);
+        const res = await fetch(`${API}/${encodeURIComponent(title)}`);
         if (!res.ok) throw new Error();
         const n = await res.json();
         document.getElementById('editTitle').value = n.title;
@@ -329,22 +329,22 @@ async function updateNote(oldTitle) {
     const content = document.getElementById('editContent').value.trim();
     if (!content) return;
     try {
-        const res = await fetch(`${API}/notes/${encodeURIComponent(oldTitle)}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: editMeta.pinned, color: editMeta.color, tags: editMeta.tags, archived: editMeta.archived }) });
+        const res = await fetch(`${API}/${encodeURIComponent(oldTitle)}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: editMeta.pinned, color: editMeta.color, tags: editMeta.tags, archived: editMeta.archived }) });
         if (res.ok) { closeEditModal(); loadCurrentView(); }
     } catch(e) { console.error(e); }
 }
 
 async function deleteNote(title) {
     if (!confirm(`'${title}' 메모를 삭제하시겠습니까?`)) return;
-    try { const res = await fetch(`${API}/notes/${encodeURIComponent(title)}`, { method: 'DELETE' }); if (res.ok) loadCurrentView(); } catch(e) { console.error(e); }
+    try { const res = await fetch(`${API}/${encodeURIComponent(title)}`, { method: 'DELETE' }); if (res.ok) loadCurrentView(); } catch(e) { console.error(e); }
 }
 
 async function togglePin(title, pinned) {
-    try { await fetch(`${API}/notes/${encodeURIComponent(title)}/meta`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ pinned }) }); loadCurrentView(); } catch(e) { console.error(e); }
+    try { await fetch(`${API}/${encodeURIComponent(title)}/meta`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ pinned }) }); loadCurrentView(); } catch(e) { console.error(e); }
 }
 
 async function toggleArchive(title, archived) {
-    try { await fetch(`${API}/notes/${encodeURIComponent(title)}/meta`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ archived }) }); loadCurrentView(); } catch(e) { console.error(e); }
+    try { await fetch(`${API}/${encodeURIComponent(title)}/meta`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ archived }) }); loadCurrentView(); } catch(e) { console.error(e); }
 }
 
 function filterByTag(tag) {
