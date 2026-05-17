@@ -7,7 +7,8 @@ uv run pyinstaller --onefile \
     --add-data ".env:." \
     --add-data "../frontend/notes:notes" \
     --collect-all google.genai \
-    --collect-all routes \
+    --collect-all core \
+    --collect-all modules \
     --hidden-import uvicorn.logging \
     --hidden-import uvicorn.loops \
     --hidden-import uvicorn.loops.auto \
