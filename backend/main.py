@@ -16,10 +16,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from routes import router as translator_router
-from notes_routes import router as notes_router
-from services import setup_logging
-from validators import validate_environment
+from modules.translator.router import router as translator_router
+from modules.notes.router import router as notes_router
+from core.logger import setup_logging
+from core.validators import validate_environment
 
 # 환경변수 검증
 validate_environment()
@@ -89,7 +89,7 @@ if os.path.exists(frontend_path):
 # --- 서버 실행 ---
 
 if __name__ == "__main__":
-    from services import DEFAULT_HOST, DEFAULT_PORT
+    from core.constants import DEFAULT_HOST, DEFAULT_PORT
     import psutil
 
     logger = logging.getLogger(__name__)
