@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
 
@@ -12,10 +13,22 @@ from core.config import ConfigManager
 from core.constants import DEFAULT_PROVIDER
 from modules.translator.schemas import TranslationRequest, TranslationResponse
 from modules.translator.service import TranslationService
+from modules.translator import benchmark_service
 
 router = APIRouter()
 config_manager = ConfigManager()
 translation_service = TranslationService(config_manager)
+
+
+class BenchmarkRecord(BaseModel):
+    model: str
+    provider: str
+    source_lang: str          # 원문 언어 코드 (예: "en", "ja", "unknown")
+    target_lang: str          # 번역 대상 언어 코드 (예: "ko")
+    char_count: int           # 원문 글자 수
+    elapsed_ms: int           # 소요 시간 (밀리초)
+    mode: str                 # "normal" | "stream"
+
 
 @router.get("/health")
 def health():
@@ -83,6 +96,32 @@ async def translate_stream(request: TranslationRequest):
         error_msg = str(e)
         logging.getLogger(__name__).error(f"스트리밍 번역 처리 중 오류: {error_msg}")
         raise HTTPException(status_code=500, detail=error_msg)
+
+
+# ================================================================
+# 벤치마크 엔드포인트
+# ================================================================
+
+@router.post("/benchmark", status_code=201)
+async def add_benchmark(record: BenchmarkRecord):
+    """번역 완료 시 크롬 확장에서 호출하여 벤치마크 기록 1건을 저장합니다."""
+    await benchmark_service.save_record(record.model_dump())
+    return {"status": "ok"}
+
+
+@router.get("/benchmark")
+async def get_benchmark():
+    """저장된 벤치마크 기록 전체를 최신순으로 반환합니다."""
+    records = await benchmark_service.load_records()
+    return {"records": list(reversed(records))}
+
+
+@router.delete("/benchmark")
+async def clear_benchmark():
+    """전체 벤치마크 기록을 삭제합니다."""
+    await benchmark_service.clear_records()
+    return {"status": "ok"}
+
 
 @router.get("/get_transcript")
 def get_transcript(

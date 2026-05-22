@@ -4,6 +4,9 @@
  */
 const SERVER_BASE_URL = "http://localhost:5000/api/translator";
 
+// 원문 언어 코드 (YouTube 자막에서 공급되면 업데이트, 직접 입력은 "unknown")
+let currentSourceLang = "unknown";
+
 /**
  * AI 모델이 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 반환합니다.
  */
@@ -337,6 +340,9 @@ async function fetchAndDisplayTranscript(videoId, videoTitle, fullUrl) {
         }
         const data = await response.json();
 
+        // 원문 언어 코드 저장 (벤치마크에 사용)
+        currentSourceLang = data.language_code || "unknown";
+
         // HTML 특수 문자를 이스케이프하여 순수 텍스트로 처리되도록 합니다.
         const transcriptContent = data.transcript
             .split("\n")
@@ -561,6 +567,8 @@ function handleRegularTranslation() {
     const { taggedText, segments } = addSegmentMarkers(inputText);
     currentInputSegments = segments;
 
+    const benchmarkStartTime = Date.now();
+
     translateButton.disabled = true;
     inputDiv.setAttribute("contenteditable", "false");
     updateStatus("번역 준비중...", "loading", true);
@@ -653,6 +661,16 @@ function handleRegularTranslation() {
             localStorage.setItem("lastUsedModel", selectedModel);
             translationSucceeded = true;
             updateProgressBar(100);
+            // 벤치마크 기록 저장 (fire-and-forget)
+            postBenchmarkRecord({
+                model: selectedModel,
+                provider: selectedProvider,
+                source_lang: currentSourceLang,
+                target_lang: targetLanguage,
+                char_count: inputText.length,
+                elapsed_ms: Date.now() - benchmarkStartTime,
+                mode: "normal",
+            });
             setTimeout(() => {
                 hideProgress();
                 updateStatus(`${inputText.length}자 번역 완료`, "success");
@@ -724,6 +742,8 @@ async function handleStreamTranslation() {
 
     const { taggedText, segments } = addSegmentMarkers(inputText);
     currentInputSegments = segments;
+
+    const benchmarkStartTime = Date.now();
 
     translateButton.disabled = true;
     inputDiv.setAttribute("contenteditable", "false");
@@ -799,6 +819,16 @@ async function handleStreamTranslation() {
         window.refreshScrollUnits?.();
 
         updateStatus("스트리밍 완료", "success");
+        // 벤치마크 기록 저장 (fire-and-forget)
+        postBenchmarkRecord({
+            model: selectedModel,
+            provider: document.getElementById("provider-select").value,
+            source_lang: currentSourceLang,
+            target_lang: targetLanguage,
+            char_count: inputText.length,
+            elapsed_ms: Date.now() - benchmarkStartTime,
+            mode: "stream",
+        });
         // 마지막 사용 모델/프로바이더 저장
         localStorage.setItem("lastUsedProvider", document.getElementById("provider-select").value);
         localStorage.setItem("lastUsedModel", selectedModel);
@@ -981,4 +1011,172 @@ function setupScrollSynchronization() {
 // 스크롤 동기화 초기화 (DOM 로드 후)
 window.addEventListener("DOMContentLoaded", () => {
     setupScrollSynchronization();
+});
+
+// ===== 벤치마크 패널 =====
+
+const LANG_NAMES = {
+    ko: "한국어", en: "영어", ja: "일본어", zh: "중국어",
+    es: "스페인어", fr: "프랑스어", de: "독일어",
+    ru: "러시아어", pt: "포르투갈어", it: "이탈리아어",
+    unknown: "?",
+};
+
+function getLangName(code) {
+    if (!code) return "?";
+    return LANG_NAMES[code] || code;
+}
+
+function formatElapsed(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}초`;
+}
+
+function elapsedClass(ms) {
+    if (ms > 30000) return "very-slow";
+    if (ms > 10000) return "slow";
+    return "";
+}
+
+function formatTimestamp(iso) {
+    try {
+        const d = new Date(iso);
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${mm}-${dd} ${hh}:${min}`;
+    } catch {
+        return iso;
+    }
+}
+
+/**
+ * 벤치마크 기록 1건을 백엔드에 저장합니다 (fire-and-forget).
+ */
+async function postBenchmarkRecord(record) {
+    try {
+        await fetch(`${SERVER_BASE_URL}/benchmark`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(record),
+        });
+    } catch (e) {
+        console.warn("벤치마크 저장 실패 (무시됨):", e);
+    }
+}
+
+/**
+ * 벤치마크 기록 전체를 백엔드에서 불러옵니다.
+ */
+async function fetchBenchmarkRecords() {
+    const res = await fetch(`${SERVER_BASE_URL}/benchmark`);
+    if (!res.ok) throw new Error("벤치마크 데이터 로드 실패");
+    const data = await res.json();
+    return data.records || [];
+}
+
+/**
+ * 벤치마크 기록 전체를 삭제합니다.
+ */
+async function deleteBenchmarkRecords() {
+    await fetch(`${SERVER_BASE_URL}/benchmark`, { method: "DELETE" });
+}
+
+/**
+ * 기록 배열을 HTML 테이블로 렌더링합니다.
+ */
+function renderBenchmarkTable(records) {
+    const content = document.getElementById("benchmark-content");
+    const badge = document.getElementById("benchmark-count-badge");
+    badge.textContent = records.length;
+
+    if (records.length === 0) {
+        content.innerHTML = `<div class="benchmark-empty">번역 기록이 없습니다.<br><small style="color:#94a3b8;">\ubc88\uc5ed\uc744 \uc644\ub8cc\ud558\uba74 \uc790\ub3d9\uc73c\ub85c \uae30\ub85d\ub429\ub2c8\ub2e4.</small></div>`;
+        return;
+    }
+
+    const rows = records.map((r, i) => {
+        const srcName = getLangName(r.source_lang);
+        const tgtName = getLangName(r.target_lang);
+        const langStr = r.source_lang === "unknown"
+            ? `→ ${tgtName}`
+            : `${r.source_lang} → ${tgtName}`;
+        const elapsed = formatElapsed(r.elapsed_ms);
+        const cls = elapsedClass(r.elapsed_ms);
+        const modeLabel = r.mode === "stream" ? "스트림" : "일반";
+        const modeClass = r.mode === "stream" ? "stream" : "normal";
+        const modelDisplay = r.model.replace("models/", "");
+        const charStr = r.char_count.toLocaleString() + "\uc790";
+        return `<tr>
+            <td style="color:var(--text-secondary);font-size:12px;">${i + 1}</td>
+            <td style="color:var(--text-secondary);font-size:12px;white-space:nowrap;">${formatTimestamp(r.timestamp)}</td>
+            <td style="font-size:12px;text-transform:capitalize;">${r.provider}</td>
+            <td><span class="bm-model">${escapeHtml(modelDisplay)}</span></td>
+            <td><span class="bm-lang">${escapeHtml(langStr)}</span></td>
+            <td style="text-align:right;font-size:12px;">${charStr}</td>
+            <td><span class="bm-time ${cls}">${elapsed}</span></td>
+            <td><span class="bm-mode ${modeClass}">${modeLabel}</span></td>
+        </tr>`;
+    }).join("");
+
+    content.innerHTML = `
+        <table class="benchmark-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>일시</th>
+                    <th>프로바이더</th>
+                    <th>모델</th>
+                    <th>언어</th>
+                    <th style="text-align:right;">원문 글자</th>
+                    <th>소요 시간</th>
+                    <th>모드</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
+}
+
+/**
+ * 벤치마크 패널 열기/닫기를 토글합니다.
+ */
+async function toggleBenchmarkPanel() {
+    const panel = document.getElementById("benchmark-panel");
+    const isOpen = panel.classList.contains("open");
+
+    if (isOpen) {
+        panel.classList.remove("open");
+        return;
+    }
+
+    panel.classList.add("open");
+
+    const content = document.getElementById("benchmark-content");
+    content.innerHTML = `<div class="benchmark-loading">불러오는 중...</div>`;
+
+    try {
+        const records = await fetchBenchmarkRecords();
+        renderBenchmarkTable(records);
+    } catch (e) {
+        content.innerHTML = `<div class="benchmark-empty" style="color:#ef4444;">데이터를 불러오지 못했습니다.<br><small>서버가 실행 중인지 확인해주세요.</small></div>`;
+    }
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    // 벤치마크 패널 이벤트 등록
+    document.getElementById("benchmark-btn").addEventListener("click", toggleBenchmarkPanel);
+    document.getElementById("benchmark-close-btn").addEventListener("click", () => {
+        document.getElementById("benchmark-panel").classList.remove("open");
+    });
+    document.getElementById("benchmark-clear-btn").addEventListener("click", async () => {
+        if (!confirm("벤치마크 기록을 모두 삭제하시겠습니까?")) return;
+        try {
+            await deleteBenchmarkRecords();
+            renderBenchmarkTable([]);
+        } catch (e) {
+            alert("삭제에 실패했습니다. 서버 상태를 확인해주세요.");
+        }
+    });
 });
