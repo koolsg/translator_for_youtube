@@ -163,7 +163,7 @@ def get_transcript(
 
         transcript_data = transcript.fetch()
 
-        sentence_end_re = re.compile(r"[.!?。！？…‥]+[)\"”’\]]*")
+        sentence_end_re = re.compile(r"(?:[.!?]+[)\"”’\]]*(?=\s|$))|[。！？…‥]+[)\"”’\]]*")
         merged_output: list[str] = []
         current_text = ""
         current_start_time = ""
