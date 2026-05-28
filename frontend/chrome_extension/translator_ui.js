@@ -7,6 +7,191 @@ const SERVER_BASE_URL = "http://localhost:5000/api/translator";
 // 원문 언어 코드 (YouTube 자막에서 공급되면 업데이트, 직접 입력은 "unknown")
 let currentSourceLang = "unknown";
 
+// ===== TTS VOICE NOTIFICATION FUNCTIONALITY =====
+let voices = [];
+
+/**
+ * 브라우저가 지원하는 TTS 목소리 목록을 가져와 드롭다운에 매핑합니다.
+ */
+function populateVoiceList() {
+    if (typeof speechSynthesis === "undefined") return;
+    
+    voices = speechSynthesis.getVoices();
+    const voiceSelect = document.getElementById("voice-select");
+    if (!voiceSelect) return;
+    
+    const selectedVoiceName = localStorage.getItem("voice_notification_voice");
+    voiceSelect.innerHTML = "";
+    
+    if (voices.length === 0) {
+        const option = document.createElement("option");
+        option.textContent = "사용 가능한 목소리 없음";
+        option.value = "";
+        voiceSelect.appendChild(option);
+        return;
+    }
+    
+    // 한국어 -> 영어 -> 일본어 -> 중국어 -> 기타 언어 순으로 정렬하여 사용자 편의성 제공
+    const sortedVoices = [...voices].sort((a, b) => {
+        const aKo = a.lang.startsWith("ko") ? 1 : 0;
+        const bKo = b.lang.startsWith("ko") ? 1 : 0;
+        if (aKo !== bKo) return bKo - aKo;
+        
+        const aEn = a.lang.startsWith("en") ? 1 : 0;
+        const bEn = b.lang.startsWith("en") ? 1 : 0;
+        if (aEn !== bEn) return bEn - aEn;
+        
+        const aJa = a.lang.startsWith("ja") ? 1 : 0;
+        const bJa = b.lang.startsWith("ja") ? 1 : 0;
+        if (aJa !== bJa) return bJa - aJa;
+        
+        const aZh = a.lang.startsWith("zh") ? 1 : 0;
+        const bZh = b.lang.startsWith("zh") ? 1 : 0;
+        if (aZh !== bZh) return bZh - aZh;
+        
+        return a.lang.localeCompare(b.lang);
+    });
+    
+    sortedVoices.forEach((voice) => {
+        const option = document.createElement("option");
+        option.textContent = `${voice.name} (${voice.lang})`;
+        option.value = voice.name;
+        
+        if (voice.name === selectedVoiceName) {
+            option.selected = true;
+        } else if (!selectedVoiceName && voice.lang.startsWith("ko")) {
+            // 디폴트로 한국어 목소리가 지정되지 않았을 때 첫 한국어 목소리 자동 선택
+            if (![...voiceSelect.options].some(opt => opt.selected)) {
+                option.selected = true;
+            }
+        }
+        voiceSelect.appendChild(option);
+    });
+    
+    // 아무것도 선택되지 않았다면 첫 번째 목소리 지정
+    if (voiceSelect.selectedIndex === -1 && voiceSelect.options.length > 0) {
+        voiceSelect.options[0].selected = true;
+    }
+}
+
+// Chrome 등 비동기 목소리 로드 대응
+if (typeof speechSynthesis !== "undefined") {
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+    }
+    populateVoiceList();
+}
+
+/**
+ * 체크박스 상태에 따라 목소리 선택 상자와 테스트 버튼 활성/비활성화
+ */
+function updateVoiceUIState() {
+    const voiceCheckbox = document.getElementById("voice-notification-checkbox");
+    const voiceSelect = document.getElementById("voice-select");
+    const voiceTestBtn = document.getElementById("voice-test-btn");
+    
+    if (!voiceCheckbox || !voiceSelect || !voiceTestBtn) return;
+    
+    const isEnabled = voiceCheckbox.checked;
+    voiceSelect.disabled = !isEnabled;
+    voiceTestBtn.disabled = !isEnabled;
+}
+
+/**
+ * 선택한 목소리로 짧은 안내 멘트를 미리 들려줍니다.
+ */
+function playVoiceTest() {
+    if (typeof speechSynthesis === "undefined") return;
+    
+    const voiceCheckbox = document.getElementById("voice-notification-checkbox");
+    if (!voiceCheckbox || !voiceCheckbox.checked) return;
+    
+    if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+    }
+    
+    const voiceSelect = document.getElementById("voice-select");
+    const selectedVoiceName = voiceSelect ? voiceSelect.value : null;
+    const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+    
+    let message = "안녕하세요. 유튜브 번역기 안내 음성입니다.";
+    if (selectedVoice) {
+        const lang = selectedVoice.lang.toLowerCase();
+        if (lang.startsWith("en")) {
+            message = "Hello. This is the YouTube Translator voice.";
+        } else if (lang.startsWith("ja")) {
+            message = "こんにちは。YouTube翻訳の音声です。";
+        } else if (lang.startsWith("zh")) {
+            message = "你好，这是 YouTube 翻译器的声音。";
+        } else if (lang.startsWith("es")) {
+            message = "Hola. Esta es la voz del traductor de YouTube.";
+        } else if (lang.startsWith("fr")) {
+            message = "Bonjour. C'est la voix du traducteur de YouTube.";
+        } else if (lang.startsWith("de")) {
+            message = "Hallo. Dies ist die Stimme des YouTube-Übersetzers.";
+        }
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(message);
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+    }
+    utterance.volume = 1.0;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    speechSynthesis.speak(utterance);
+}
+
+/**
+ * 번역이 완료되었을 때 지정된 목소리로 번역 완료를 안내합니다.
+ */
+function speakTranslationComplete() {
+    const voiceCheckbox = document.getElementById("voice-notification-checkbox");
+    if (!voiceCheckbox || !voiceCheckbox.checked) return;
+    
+    if (typeof speechSynthesis === "undefined") return;
+    
+    if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+    }
+    
+    const voiceSelect = document.getElementById("voice-select");
+    const selectedVoiceName = voiceSelect ? voiceSelect.value : null;
+    const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+    
+    let message = "번역이 완료되었습니다.";
+    if (selectedVoice) {
+        const lang = selectedVoice.lang.toLowerCase();
+        if (lang.startsWith("en")) {
+            message = "Translation is complete.";
+        } else if (lang.startsWith("ja")) {
+            message = "翻訳が完了しました。";
+        } else if (lang.startsWith("zh")) {
+            message = "翻译已完成。";
+        } else if (lang.startsWith("es")) {
+            message = "La traducción está completa.";
+        } else if (lang.startsWith("fr")) {
+            message = "La traduction est terminée.";
+        } else if (lang.startsWith("de")) {
+            message = "Die Übersetzung ist abgeschlossen.";
+        }
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(message);
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+    }
+    utterance.volume = 1.0;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    
+    speechSynthesis.speak(utterance);
+}
+
+
 /**
  * AI 모델이 추가한 불필요한 소개 문구를 제거하고 순수 번역 텍스트만 반환합니다.
  */
@@ -385,6 +570,32 @@ window.addEventListener("DOMContentLoaded", () => {
     updateOutputCharCounter("");
     loadLanguageOptions();
 
+    // TTS Voice Notification UI 복원 및 바인딩
+    const voiceCheckbox = document.getElementById("voice-notification-checkbox");
+    const voiceSelect = document.getElementById("voice-select");
+    const voiceTestBtn = document.getElementById("voice-test-btn");
+
+    if (voiceCheckbox && voiceSelect && voiceTestBtn) {
+        const savedVoiceEnabled = localStorage.getItem("voice_notification_enabled") !== "false";
+        voiceCheckbox.checked = savedVoiceEnabled;
+
+        voiceCheckbox.addEventListener("change", () => {
+            localStorage.setItem("voice_notification_enabled", voiceCheckbox.checked);
+            updateVoiceUIState();
+        });
+
+        voiceSelect.addEventListener("change", () => {
+            localStorage.setItem("voice_notification_voice", voiceSelect.value);
+        });
+
+        voiceTestBtn.addEventListener("click", () => {
+            playVoiceTest();
+        });
+
+        updateVoiceUIState();
+        populateVoiceList();
+    }
+
     const timestampCheckbox = document.getElementById("timestamp-checkbox");
     const showTimestamp = localStorage.getItem("show_timestamp") === "true";
     timestampCheckbox.checked = showTimestamp;
@@ -495,6 +706,33 @@ function renderParagraphs(element, paragraphs) {
             return `<div class="para"${segAttr}>${safe}</div>`;
         })
         .join("");
+}
+
+/**
+ * AI의 번역 결과(parsedOutput)를 원문 세그먼트(currentInputSegments)의 ID 순서에 맞춰 1:1로 결합하고 정렬합니다.
+ * AI가 누락한 세그먼트가 있다면 원본 텍스트를 폴백으로 사용하며 앞에 '(번역 누락)' 표시를 붙여 줄 밀림을 완전히 방지합니다.
+ */
+function alignTranslationWithInput(parsedOutput, currentInputSegments) {
+    if (!currentInputSegments || currentInputSegments.length === 0) {
+        return parsedOutput;
+    }
+
+    const outputMap = new Map();
+    parsedOutput.forEach((item) => {
+        if (item.id) {
+            outputMap.set(item.id, item.text);
+        }
+    });
+
+    return currentInputSegments.map((inputSeg) => {
+        const translatedText = outputMap.get(inputSeg.id);
+        if (translatedText !== undefined && translatedText.trim() !== "") {
+            return { id: inputSeg.id, text: translatedText };
+        } else {
+            console.warn(`Translation missing for segment ${inputSeg.id}. Falling back to original.`);
+            return { id: inputSeg.id, text: `(번역 누락) ${inputSeg.text}` };
+        }
+    });
 }
 
 function clearHighlights() {
@@ -648,13 +886,14 @@ function handleRegularTranslation() {
             const cleanText = cleanTranslatedText(data.translated_text);
 
             const parsedOutput = parseTaggedLines(cleanText);
-            renderParagraphs(outputDiv, parsedOutput);
+            const alignedOutput = alignTranslationWithInput(parsedOutput, currentInputSegments);
+            renderParagraphs(outputDiv, alignedOutput);
             if (currentInputSegments.length) {
                 renderParagraphs(document.getElementById("input-text"), currentInputSegments);
                 updateCharCounter();
             }
 
-            updateOutputCharCounter(parsedOutput.map((p) => p.text).join("\n"));
+            updateOutputCharCounter(alignedOutput.map((p) => p.text).join("\n"));
             refreshSegMaps();
             window.refreshScrollUnits?.();
             localStorage.setItem("lastUsedProvider", selectedProvider);
@@ -682,6 +921,8 @@ function handleRegularTranslation() {
                         message: '요청하신 번역이 성공적으로 완료되었습니다.'
                     });
                 }
+                // 번역 완료 음성 알림 출력
+                speakTranslationComplete();
             }, 500);
         })
         .catch(async (error) => {
@@ -808,12 +1049,13 @@ async function handleStreamTranslation() {
         // 스트리밍 완료 후 AI 소개 문구 정리
         const cleanText = cleanTranslatedText(fullResponse);
         const parsedOutput = parseTaggedLines(cleanText);
-        renderParagraphs(outputDiv, parsedOutput);
+        const alignedOutput = alignTranslationWithInput(parsedOutput, currentInputSegments);
+        renderParagraphs(outputDiv, alignedOutput);
         if (currentInputSegments.length) {
             renderParagraphs(document.getElementById("input-text"), currentInputSegments);
             updateCharCounter();
         }
-        updateOutputCharCounter(parsedOutput.map((p) => p.text).join("\n"));
+        updateOutputCharCounter(alignedOutput.map((p) => p.text).join("\n"));
 
         refreshSegMaps();
         window.refreshScrollUnits?.();
@@ -840,6 +1082,8 @@ async function handleStreamTranslation() {
                 message: '요청하신 번역이 성공적으로 완료되었습니다.'
             });
         }
+        // 번역 완료 음성 알림 출력 (스트리밍)
+        speakTranslationComplete();
     } catch (error) {
         console.error("스트리밍 번역 오류:", error);
         if (error.name === "AbortError") {

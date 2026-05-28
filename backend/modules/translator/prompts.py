@@ -19,10 +19,11 @@ def build_translation_prompt(text: str, target_lang_name: str, target_language: 
     return f"""Translate the following text to {target_lang_name} ({target_language}).
 
 IMPORTANT INSTRUCTIONS:
-- Some lines start with tags like [SEG-0001]. Keep every tag EXACTLY as-is in the output and leave it at the start of the same line. Do not translate, delete, move, or rename tags.
+- Every single line starts with a tag like [SEG-0001]. You MUST keep every single tag EXACTLY as-is in the output, and it MUST stay at the very beginning of the same line.
+- DO NOT skip, delete, merge, split, reorder, or rename any tag. If there are 10 tags in the input, there MUST be exactly the same 10 tags in the output in the exact same order.
 - Translate only the text after each tag.
-- Preserve the original line breaks.
-- Output ONLY the translated text (with tags kept). Do NOT add introductions or explanations.
+- Preserve the original line breaks exactly.
+- Output ONLY the translated text (with all tags strictly kept). Do NOT add any introductions, conversational responses, markdown block formatting, or explanations.
 
 Text to translate:
 {text}"""
@@ -41,9 +42,9 @@ def build_openai_system_prompt(target_language: str) -> str:
         "You are a translation assistant. "
         f"Translate all user text to {target_language}. "
         "IMPORTANT INSTRUCTIONS:\n"
-        "- Some lines begin with tags like [SEG-0001]. Keep every tag EXACTLY as-is at the start of the same line. "
-        "Do not translate, delete, move, or rename these tags.\n"
+        "- Every single line starts with a tag like [SEG-0001]. You MUST keep every single tag EXACTLY as-is in the output, and it MUST stay at the very beginning of the same line.\n"
+        "- DO NOT skip, delete, merge, split, reorder, or rename any tag. If there are 10 tags in the input, there MUST be exactly the same 10 tags in the output in the exact same order.\n"
         "- Translate only the text after each tag.\n"
-        "- Preserve all original line breaks.\n"
-        "- Output ONLY the translated text (with the tags kept). Do NOT add introductions or explanations."
+        "- Preserve all original line breaks exactly.\n"
+        "- Output ONLY the translated text (with all tags strictly kept). Do NOT add any introductions, conversational responses, markdown block formatting, or explanations."
     )

@@ -478,6 +478,38 @@
                 top: 100px;
             }
         }
+        
+        #voice-test-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            white-space: nowrap;
+        }
+
+        #voice-test-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        #voice-test-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        #voice-test-btn:disabled,
+        #voice-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
 
         /* ===== 벤치마크 슬라이드업 패널 ===== */
         #benchmark-btn {
@@ -750,6 +782,18 @@
         <div class="checkbox-group">
             <input type="checkbox" id="notification-checkbox" checked>
             <label for="notification-checkbox">Notification</label>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="voice-notification-checkbox" checked>
+            <label for="voice-notification-checkbox">음성 알림 (TTS)</label>
+        </div>
+
+        <div class="control-group" id="voice-select-group">
+            <select id="voice-select" style="min-width: 160px;">
+                <option value="">음성 불러오는 중...</option>
+            </select>
+            <button id="voice-test-btn" type="button">▶ 들어보기</button>
         </div>
 
         <div class="checkbox-group">
