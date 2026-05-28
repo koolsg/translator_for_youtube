@@ -63,20 +63,110 @@ header {
 }
 .header-actions button:hover { color: var(--text-main); }
 
-/* Filter Bar */
-.filter-bar {
-    max-width: 1200px; margin: 0 auto; padding: 1rem 2rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap;
+/* Header Menu Button */
+.menu-btn {
+    background: none; border: none; color: var(--text-muted); font-size: 1.15rem;
+    cursor: pointer; padding: 0.5rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
-.filter-btn {
-    padding: 0.35rem 1rem; border-radius: 20px; border: 1px solid var(--border);
-    background: transparent; color: var(--text-muted); font-size: 0.82rem; font-weight: 500;
-    cursor: pointer; transition: all 0.2s;
-}
-.filter-btn:hover { border-color: var(--text-muted); color: var(--text-main); }
-.filter-btn.active { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+.menu-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.08); }
 
-/* Main */
-main { max-width: 1200px; margin: 0 auto; padding: 1.5rem 2rem 2.5rem; }
+/* App Layout Container */
+.app-container {
+    display: flex; min-height: calc(100vh - 65px); width: 100%;
+}
+
+/* Sidebar styling */
+.sidebar {
+    width: 250px; background: rgba(13, 17, 23, 0.3); border-right: 1px solid var(--border);
+    padding: 1rem 0; display: flex; flex-direction: column; gap: 0.2rem; flex-shrink: 0;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1); overflow-x: hidden;
+}
+
+/* Collapsed state for desktop */
+.sidebar.collapsed { width: 70px; }
+.sidebar.collapsed .sidebar-text, .sidebar.collapsed .sidebar-section-header { opacity: 0; pointer-events: none; display: none; }
+.sidebar.collapsed .sidebar-item { justify-content: center; padding: 0.65rem 0; border-radius: 50%; width: 44px; height: 44px; margin: 0.1rem auto; gap: 0; }
+.sidebar.collapsed .sidebar-item i { font-size: 1.1rem; }
+
+/* Sidebar Item */
+.sidebar-item {
+    display: flex; align-items: center; gap: 1.15rem; padding: 0.65rem 1.5rem;
+    color: var(--text-muted); font-size: 0.9rem; font-weight: 500; cursor: pointer;
+    transition: all 0.2s ease; border-radius: 0 25px 25px 0; margin-right: 0.75rem; white-space: nowrap;
+}
+.sidebar-item:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
+.sidebar-item.active { color: var(--text-main); background: rgba(88, 166, 255, 0.15); font-weight: 600; }
+.sidebar-item.active i { color: var(--accent); }
+
+.sidebar-divider { height: 1px; background: var(--border); margin: 0.75rem 0; }
+.sidebar-section-header {
+    font-size: 0.72rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.08em; padding: 0.5rem 1.5rem; transition: opacity 0.2s;
+}
+
+/* Content Area */
+.content-area { flex: 1; padding: 1.5rem 2rem 2.5rem; min-width: 0; }
+
+/* View Indicator Header */
+.view-indicator {
+    display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem; font-weight: 600;
+    color: var(--text-main); margin-bottom: 1.5rem; animation: fadeIn 0.25s ease;
+}
+.view-indicator i { color: var(--accent); font-size: 1.05rem; }
+
+/* Create Tag input & Labels list in Modal */
+.create-tag-row {
+    display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.25rem;
+    border-bottom: 1px solid var(--border); margin-bottom: 0.75rem;
+}
+.create-tag-row input { flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 0.88rem; outline: none; }
+.create-tag-row button {
+    background: none; border: none; color: var(--success); cursor: pointer;
+    font-size: 0.95rem; padding: 0.2rem; display: flex; align-items: center; justify-content: center;
+}
+
+.modal-labels-list { max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; }
+.modal-label-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.35rem 0.25rem; border-radius: 6px; transition: all 0.2s; }
+.modal-label-item:hover { background: rgba(255, 255, 255, 0.03); }
+.modal-label-item i.tag-icon { color: var(--text-muted); font-size: 0.85rem; width: 16px; text-align: center; }
+.modal-label-item:hover i.tag-icon { display: none; }
+.modal-label-item i.delete-icon { display: none; color: var(--danger); font-size: 0.85rem; width: 16px; text-align: center; cursor: pointer; }
+.modal-label-item:hover i.delete-icon { display: inline-block; }
+.modal-label-item input {
+    flex: 1; background: transparent; border: none; color: var(--text-main);
+    font-size: 0.88rem; outline: none; padding: 0.15rem 0; border-bottom: 1px solid transparent;
+}
+.modal-label-item input:focus { border-bottom-color: var(--accent); }
+.modal-label-item button.save-btn {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 0.85rem; padding: 0.2rem; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s;
+}
+.modal-label-item input:focus ~ button.save-btn, .modal-label-item:hover button.save-btn { opacity: 1; }
+.modal-label-item button.save-btn:hover { color: var(--accent); }
+
+/* Mobile & Tablet Responsiveness */
+@media (max-width: 768px) {
+    .app-container { position: relative; }
+    .sidebar {
+        position: absolute; top: 0; left: -280px; height: 100%; width: 260px;
+        background: #0d1117; z-index: 99; transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 10px 0 25px rgba(0, 0, 0, 0.5);
+    }
+    .sidebar.open { left: 0; }
+    .sidebar.collapsed { width: 260px; } /* Disable collapse on mobile */
+    .sidebar.collapsed .sidebar-text, .sidebar.collapsed .sidebar-section-header { display: block; opacity: 1; pointer-events: auto; }
+    .sidebar.collapsed .sidebar-item { justify-content: flex-start; padding: 0.65rem 1.5rem; border-radius: 0 25px 25px 0; width: auto; height: auto; margin: 0; }
+    
+    .sidebar-overlay {
+        position: fixed; top: 65px; left: 0; width: 100%; height: calc(100vh - 65px);
+        background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 98;
+        display: none; animation: fadeIn 0.2s ease;
+    }
+    .sidebar-overlay.active { display: block; }
+    .content-area { padding: 1.25rem 1rem; }
+}
 
 /* Pinned Section */
 .section-label {

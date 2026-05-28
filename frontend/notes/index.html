@@ -13,7 +13,10 @@
 </head>
 <body>
 <header>
-    <div class="logo"><i class="fas fa-meteor"></i> Nexus Notes</div>
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+        <button id="menuBtn" class="menu-btn" title="메뉴"><i class="fas fa-bars"></i></button>
+        <div class="logo"><i class="fas fa-meteor"></i> Nexus Notes</div>
+    </div>
     <div class="search-box">
         <i class="fas fa-search"></i>
         <input type="search" id="searchInput" placeholder="메모 검색... (/ 또는 Ctrl+K)">
@@ -23,42 +26,64 @@
     </div>
 </header>
 
-<div class="filter-bar" id="filterBar">
-    <button class="filter-btn active" data-filter="all">전체</button>
-    <button class="filter-btn" data-filter="pinned"><i class="fas fa-thumbtack"></i> 고정됨</button>
-    <button class="filter-btn" data-filter="archived"><i class="fas fa-archive"></i> 보관됨</button>
-</div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-<main>
-    <div class="input-container" id="newNoteContainer">
-        <div id="collapsedInput" class="collapsed-input" onclick="expandInput()">
-            <i class="fas fa-plus"></i> 새로운 아이디어를 기록하세요...
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-item active" data-view="notes" onclick="setView('notes')">
+            <i class="fas fa-lightbulb"></i>
+            <span class="sidebar-text">메모</span>
         </div>
-        <div id="expandedInput" class="expanded-input">
-            <input type="text" id="noteTitle" class="input-title" placeholder="제목을 입력하세요">
-            <textarea id="noteContent" class="input-content" placeholder="무엇을 생각하고 계신가요? (마크다운 지원)"></textarea>
-            <div class="tags-input-wrap" id="newTagsWrap">
-                <input type="text" class="tag-input-field" id="newTagInput" placeholder="태그 추가 (Enter)">
+        <div class="sidebar-item" data-view="archive" onclick="setView('archive')">
+            <i class="fas fa-archive"></i>
+            <span class="sidebar-text">보관처리</span>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-header"><span class="sidebar-text">라벨</span></div>
+        <div id="sidebarLabelsList">
+            <!-- Dynamic labels -->
+        </div>
+        <div class="sidebar-item" onclick="openLabelsModal()">
+            <i class="fas fa-pen"></i>
+            <span class="sidebar-text">라벨 수정</span>
+        </div>
+    </aside>
+
+    <main class="content-area">
+        <div id="viewIndicator" class="view-indicator" style="display:none;">
+            <i class="fas fa-tag"></i> <span id="viewIndicatorText">라벨 이름</span>
+        </div>
+
+        <div class="input-container" id="newNoteContainer">
+            <div id="collapsedInput" class="collapsed-input" onclick="expandInput()">
+                <i class="fas fa-plus"></i> 새로운 아이디어를 기록하세요...
             </div>
-            <div class="input-toolbar">
-                <div class="color-palette" id="newColorPalette"></div>
-                <div class="input-actions">
-                    <button class="btn btn-ghost" onclick="collapseInput()">취소</button>
-                    <button class="btn btn-primary" onclick="saveNote()">저장하기</button>
+            <div id="expandedInput" class="expanded-input">
+                <input type="text" id="noteTitle" class="input-title" placeholder="제목을 입력하세요">
+                <textarea id="noteContent" class="input-content" placeholder="무엇을 생각하고 계신가요? (마크다운 지원)"></textarea>
+                <div class="tags-input-wrap" id="newTagsWrap">
+                    <input type="text" class="tag-input-field" id="newTagInput" placeholder="태그 추가 (Enter)">
+                </div>
+                <div class="input-toolbar">
+                    <div class="color-palette" id="newColorPalette"></div>
+                    <div class="input-actions">
+                        <button class="btn btn-ghost" onclick="collapseInput()">취소</button>
+                        <button class="btn btn-primary" onclick="saveNote()">저장하기</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id="pinnedSection" style="display:none;">
-        <div class="section-label"><i class="fas fa-thumbtack"></i> 고정됨</div>
-        <div id="pinnedGrid" class="notes-grid"></div>
-    </div>
-    <div id="othersSection" style="margin-top:1.5rem;">
-        <div id="othersLabel" class="section-label" style="display:none;">기타</div>
-        <div id="notesGrid" class="notes-grid"></div>
-    </div>
-</main>
+        <div id="pinnedSection" style="display:none;">
+            <div class="section-label"><i class="fas fa-thumbtack"></i> 고정됨</div>
+            <div id="pinnedGrid" class="notes-grid"></div>
+        </div>
+        <div id="othersSection" style="margin-top:1.5rem;">
+            <div id="othersLabel" class="section-label" style="display:none;">기타</div>
+            <div id="notesGrid" class="notes-grid"></div>
+        </div>
+    </main>
+</div>
 
 <!-- Edit Modal -->
 <div id="editModal" class="modal-overlay">
@@ -90,14 +115,40 @@
     </div>
 </div>
 
+<!-- Labels Edit Modal -->
+<div id="labelsModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 360px;">
+        <div class="modal-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);">
+            <div style="font-size: 1.05rem; font-weight: 600;">라벨 수정</div>
+            <button class="close-modal" onclick="closeLabelsModal()" style="width:28px; height:28px; font-size: 0.9rem;"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 1rem 1.25rem;">
+            <!-- Create Tag Row -->
+            <div class="create-tag-row">
+                <i class="fas fa-plus" id="createTagIcon" style="color: var(--text-muted); cursor: pointer;"></i>
+                <input type="text" id="newLabelModalInput" placeholder="새 라벨 만들기..." onfocus="showCreateCheck()" onblur="hideCreateCheckDelay()">
+                <button id="createTagBtn" onclick="createNewLabelFromModal()"><i class="fas fa-check"></i></button>
+            </div>
+            <!-- Labels list -->
+            <div id="modalLabelsList" class="modal-labels-list">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 0.75rem 1.25rem; justify-content: flex-end; border-top: 1px solid var(--border);">
+            <button class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;" onclick="closeLabelsModal()">완료</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const API = '/api/notes';
 const COLORS = ['', 'coral', 'peach', 'sand', 'sage', 'fog', 'storm', 'lavender'];
 let allNotes = [];
-let currentFilter = 'all';
+let currentView = 'notes'; // 'notes', 'archive', or custom tag string
 let newNoteMeta = { color: null, tags: [], pinned: false };
 let editMeta = { color: null, tags: [], pinned: false, archived: false };
 let searchTimeout = null;
+let userLabels = JSON.parse(localStorage.getItem('nexus_notes_user_labels') || '[]');
 
 // === Color Palette ===
 function renderPalette(containerId, selected, onChange) {
@@ -147,16 +198,233 @@ function setupTagInput(inputId, getTags, setTags, wrapId) {
     });
 }
 
+// === Sidebar layout ===
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (window.innerWidth <= 768) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    } else {
+        sidebar.classList.toggle('collapsed');
+    }
+}
+
+function setView(view) {
+    currentView = view;
+    
+    // Update sidebar active state
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.view === view) {
+            item.classList.add('active');
+        }
+    });
+    
+    // Reset search
+    document.getElementById('searchInput').value = '';
+    
+    // Update view indicator header
+    const indicator = document.getElementById('viewIndicator');
+    const text = document.getElementById('viewIndicatorText');
+    
+    if (view === 'notes') {
+        indicator.style.display = 'none';
+    } else if (view === 'archive') {
+        indicator.style.display = 'flex';
+        text.innerText = '보관처리';
+        indicator.querySelector('i').className = 'fas fa-archive';
+    } else {
+        indicator.style.display = 'flex';
+        text.innerText = view;
+        indicator.querySelector('i').className = 'fas fa-tag';
+    }
+    
+    // Close mobile drawer
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    
+    loadCurrentView();
+}
+
+// === Labels Management ===
+function updateLabelsList() {
+    const noteTags = [];
+    allNotes.forEach(n => {
+        if (n.tags) {
+            n.tags.forEach(t => {
+                if (t && !noteTags.includes(t)) noteTags.push(t);
+            });
+        }
+    });
+    
+    const combined = [...new Set([...userLabels, ...noteTags])].sort();
+    
+    // Sidebar list
+    const sidebarList = document.getElementById('sidebarLabelsList');
+    sidebarList.innerHTML = '';
+    combined.forEach(label => {
+        const div = document.createElement('div');
+        div.className = 'sidebar-item' + (currentView === label ? ' active' : '');
+        div.dataset.view = label;
+        div.onclick = () => setView(label);
+        div.innerHTML = `
+            <i class="fas fa-tag"></i>
+            <span class="sidebar-text">${DOMPurify.sanitize(label)}</span>
+        `;
+        sidebarList.appendChild(div);
+    });
+    
+    // Modal list
+    const modalList = document.getElementById('modalLabelsList');
+    modalList.innerHTML = '';
+    combined.forEach(label => {
+        const div = document.createElement('div');
+        div.className = 'modal-label-item';
+        div.innerHTML = `
+            <i class="fas fa-tag tag-icon"></i>
+            <i class="fas fa-trash-alt delete-icon" title="라벨 삭제" onclick="deleteLabelGlobally('${label.replace(/'/g, "\\'")}')"></i>
+            <input type="text" value="${DOMPurify.sanitize(label)}" onfocus="onLabelInputFocus(this)" onblur="onLabelInputBlur(this)">
+            <button class="save-btn" title="라벨 이름 변경" onclick="renameLabelGlobally('${label.replace(/'/g, "\\'")}', this.previousElementSibling.value)"><i class="fas fa-check"></i></button>
+        `;
+        modalList.appendChild(div);
+    });
+}
+
+function openLabelsModal() {
+    const modal = document.getElementById('labelsModal');
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    updateLabelsList();
+}
+
+function closeLabelsModal() {
+    document.getElementById('labelsModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function showCreateCheck() {
+    document.getElementById('createTagIcon').className = 'fas fa-times';
+    document.getElementById('createTagIcon').onclick = (e) => {
+        e.stopPropagation();
+        document.getElementById('newLabelModalInput').value = '';
+        hideCreateCheck();
+    };
+    document.getElementById('createTagBtn').style.display = 'flex';
+}
+
+function hideCreateCheck() {
+    document.getElementById('createTagIcon').className = 'fas fa-plus';
+    document.getElementById('createTagIcon').onclick = null;
+    document.getElementById('createTagBtn').style.display = 'none';
+}
+
+function hideCreateCheckDelay() {
+    setTimeout(() => {
+        const input = document.getElementById('newLabelModalInput');
+        if (!input.value.trim()) {
+            hideCreateCheck();
+        }
+    }, 200);
+}
+
+function createNewLabelFromModal() {
+    const input = document.getElementById('newLabelModalInput');
+    const labelName = input.value.trim();
+    if (labelName) {
+        if (!userLabels.includes(labelName)) {
+            userLabels.push(labelName);
+            localStorage.setItem('nexus_notes_user_labels', JSON.stringify(userLabels));
+            updateLabelsList();
+        }
+        input.value = '';
+        hideCreateCheck();
+    }
+}
+
+function onLabelInputFocus(input) {
+    const row = input.closest('.modal-label-item');
+    row.querySelector('.tag-icon').style.display = 'none';
+    row.querySelector('.delete-icon').style.display = 'inline-block';
+    row.querySelector('.save-btn').style.display = 'flex';
+}
+
+function onLabelInputBlur(input) {
+    setTimeout(() => {
+        const row = input.closest('.modal-label-item');
+        row.querySelector('.tag-icon').removeAttribute('style');
+        row.querySelector('.delete-icon').removeAttribute('style');
+        row.querySelector('.save-btn').removeAttribute('style');
+    }, 200);
+}
+
+async function deleteLabelGlobally(label) {
+    if (!confirm(`'${label}' 라벨을 삭제하시겠습니까? 이 라벨이 지정된 모든 메모에서 라벨이 제거됩니다.`)) return;
+    try {
+        userLabels = userLabels.filter(l => l !== label);
+        localStorage.setItem('nexus_notes_user_labels', JSON.stringify(userLabels));
+        
+        const res = await fetch(`/api/notes/tags/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tag: label })
+        });
+        
+        if (res.ok) {
+            if (currentView === label) {
+                currentView = 'notes';
+                setView('notes');
+            } else {
+                await loadCurrentView();
+            }
+        }
+    } catch (e) {
+        console.error("라벨 삭제 실패:", e);
+    }
+}
+
+async function renameLabelGlobally(oldLabel, newLabel) {
+    newLabel = newLabel.trim();
+    if (!newLabel || oldLabel === newLabel) return;
+    try {
+        userLabels = userLabels.map(l => l === oldLabel ? newLabel : l);
+        localStorage.setItem('nexus_notes_user_labels', JSON.stringify(userLabels));
+        
+        const res = await fetch(`/api/notes/tags/rename`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_tag: oldLabel, new_tag: newLabel })
+        });
+        
+        if (res.ok) {
+            if (currentView === oldLabel) {
+                currentView = newLabel;
+                setView(newLabel);
+            } else {
+                await loadCurrentView();
+            }
+        }
+    } catch (e) {
+        console.error("라벨 이름 변경 실패:", e);
+    }
+}
+
 // === Input Controls ===
 function expandInput() {
     document.getElementById('collapsedInput').style.display = 'none';
     document.getElementById('expandedInput').classList.add('active');
     document.getElementById('noteTitle').focus();
-    newNoteMeta = { color: null, tags: [], pinned: false };
+    
+    const initialTags = (currentView !== 'notes' && currentView !== 'archive') ? [currentView] : [];
+    newNoteMeta = { color: null, tags: initialTags, pinned: false };
+    
     function onNewColor(c) { newNoteMeta.color = c; renderPalette('newColorPalette', c, onNewColor); }
     renderPalette('newColorPalette', null, onNewColor);
-    renderTags('newTagsWrap', [], ()=>{});
+    renderTags('newTagsWrap', initialTags, makeTagRemover(() => newNoteMeta.tags, (t) => { newNoteMeta.tags = t; }, 'newTagsWrap'));
 }
+
 function collapseInput() {
     document.getElementById('expandedInput').classList.remove('active');
     setTimeout(() => document.getElementById('collapsedInput').style.display = 'flex', 250);
@@ -173,6 +441,7 @@ async function fetchNotes(isArchived = false) {
         if (!res.ok) throw new Error();
         allNotes = await res.json();
         renderNotes();
+        updateLabelsList();
         setTimeout(() => document.getElementById('refreshBtn').querySelector('i').classList.remove('fa-spin'), 400);
     } catch { document.getElementById('notesGrid').innerHTML = '<div class="empty-state">서버에 연결할 수 없습니다.</div>'; }
 }
@@ -194,7 +463,7 @@ function renderNotes() {
     const othersLabel = document.getElementById('othersLabel');
     const grid = document.getElementById('notesGrid');
 
-    if (pinnedNotes.length > 0 && currentFilter !== 'archived') {
+    if (pinnedNotes.length > 0 && currentView !== 'archive') {
         pinnedSection.style.display = 'block';
         pinnedGrid.innerHTML = '';
         pinnedGrid.appendChild(buildCardFragment(pinnedNotes));
@@ -348,28 +617,24 @@ async function toggleArchive(title, archived) {
 }
 
 function filterByTag(tag) {
-    document.getElementById('searchInput').value = tag;
-    searchNotes(tag);
+    setView(tag);
 }
 
 function loadCurrentView() {
     const q = document.getElementById('searchInput').value.trim();
     if (q) { searchNotes(q); return; }
-    fetchNotes(currentFilter === 'archived');
+    
+    if (currentView === 'archive') {
+        fetchNotes(true);
+    } else if (currentView === 'notes') {
+        fetchNotes(false);
+    } else {
+        fetchNotes(false).then(() => {
+            allNotes = allNotes.filter(n => n.tags && n.tags.includes(currentView));
+            renderNotes();
+        });
+    }
 }
-
-// === Filter Bar ===
-document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentFilter = btn.dataset.filter;
-        document.getElementById('searchInput').value = '';
-        if (currentFilter === 'archived') fetchNotes(true);
-        else if (currentFilter === 'pinned') { fetchNotes(false).then(() => { allNotes = allNotes.filter(n => n.pinned); renderNotes(); }); }
-        else fetchNotes(false);
-    });
-});
 
 // === Search ===
 document.getElementById('searchInput').addEventListener('input', (e) => {
@@ -389,6 +654,7 @@ document.addEventListener('keydown', (e) => {
     const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
     if (e.key === 'Escape') {
         if (document.getElementById('editModal').classList.contains('active')) closeEditModal();
+        else if (document.getElementById('labelsModal').classList.contains('active')) closeLabelsModal();
         else if (document.getElementById('expandedInput').classList.contains('active')) collapseInput();
         else if (isTyping) active.blur();
     }
@@ -400,6 +666,9 @@ document.addEventListener('keydown', (e) => {
 // === Init ===
 document.getElementById('refreshBtn').onclick = () => loadCurrentView();
 document.getElementById('editModal').addEventListener('click', (e) => { if (e.target === document.getElementById('editModal')) closeEditModal(); });
+document.getElementById('labelsModal').addEventListener('click', (e) => { if (e.target === document.getElementById('labelsModal')) closeLabelsModal(); });
+document.getElementById('menuBtn').addEventListener('click', toggleSidebar);
+
 function onInitColor(c) { newNoteMeta.color = c; renderPalette('newColorPalette', c, onInitColor); }
 renderPalette('newColorPalette', null, onInitColor);
 fetchNotes();

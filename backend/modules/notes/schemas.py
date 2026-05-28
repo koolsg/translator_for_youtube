@@ -32,3 +32,11 @@ class MetaUpdate(BaseModel):
     color: Optional[str] = None
     tags: Optional[List[str]] = None
     archived: Optional[bool] = None
+
+class TagRenameRequest(BaseModel):
+    old_tag: str
+    new_tag: str
+
+class TagDeleteRequest(BaseModel):
+    tag: str
+

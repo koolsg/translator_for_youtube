@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List
 from fastapi import APIRouter, HTTPException, Query
 
-from modules.notes.schemas import NoteSummary, NoteDetail, NoteCreate, MetaUpdate
+from modules.notes.schemas import NoteSummary, NoteDetail, NoteCreate, MetaUpdate, TagRenameRequest, TagDeleteRequest
 from modules.notes.service import (
     NOTES_DIR,
     VALID_COLORS,
@@ -257,3 +257,67 @@ async def delete_note(title: str):
     except Exception as e:
         logger.error(f"메모 삭제 실패: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete note")
+
+
+@router.post("/tags/rename")
+async def rename_tag(req: TagRenameRequest):
+    def _rename():
+        renamed_count = 0
+        for filename in os.listdir(NOTES_DIR):
+            if not filename.endswith(".md"):
+                continue
+            file_path = os.path.join(NOTES_DIR, filename)
+            try:
+                meta, body = read_note_file(file_path)
+                if "tags" in meta and req.old_tag in meta["tags"]:
+                    meta["tags"] = [req.new_tag if t == req.old_tag else t for t in meta["tags"]]
+                    unique_tags = []
+                    for t in meta["tags"]:
+                        if t not in unique_tags:
+                            unique_tags.append(t)
+                    meta["tags"] = unique_tags
+
+                    content = serialize_frontmatter(meta, body)
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    renamed_count += 1
+            except Exception as e:
+                logger.error(f"Failed to rename tag in {filename}: {e}")
+                continue
+        return renamed_count
+
+    try:
+        count = await asyncio.to_thread(_rename)
+        return {"status": "success", "renamed_count": count}
+    except Exception as e:
+        logger.error(f"전역 태그 이름 변경 실패: {e}")
+        raise HTTPException(status_code=500, detail="Failed to rename tags globally")
+
+
+@router.post("/tags/delete")
+async def delete_tag(req: TagDeleteRequest):
+    def _delete_tag():
+        deleted_count = 0
+        for filename in os.listdir(NOTES_DIR):
+            if not filename.endswith(".md"):
+                continue
+            file_path = os.path.join(NOTES_DIR, filename)
+            try:
+                meta, body = read_note_file(file_path)
+                if "tags" in meta and req.tag in meta["tags"]:
+                    meta["tags"] = [t for t in meta["tags"] if t != req.tag]
+                    content = serialize_frontmatter(meta, body)
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    deleted_count += 1
+            except Exception as e:
+                logger.error(f"Failed to delete tag in {filename}: {e}")
+                continue
+        return deleted_count
+
+    try:
+        count = await asyncio.to_thread(_delete_tag)
+        return {"status": "success", "deleted_count": count}
+    except Exception as e:
+        logger.error(f"전역 태그 삭제 실패: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete tags globally")
