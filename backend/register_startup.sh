@@ -50,7 +50,15 @@ install_service() {
     # systemd 데몬 재로드 및 서비스 활성화
     systemctl --user daemon-reload
     systemctl --user enable "$SERVICE_NAME"
-    systemctl --user start "$SERVICE_NAME"
+
+    # 이미 서비스가 구동 중이면 새 빌드가 실행되도록 재시작하고, 꺼져있으면 새로 시작합니다.
+    if systemctl --user is-active --quiet "$SERVICE_NAME"; then
+        echo ">> 기존 서비스가 구동 중입니다. 최신 빌드로 재시작합니다..."
+        systemctl --user restart "$SERVICE_NAME"
+    else
+        echo ">> 서비스를 시작합니다..."
+        systemctl --user start "$SERVICE_NAME"
+    fi
 
     echo ""
     echo "[OK] 설치 완료! '$SERVICE_NAME' 서비스가 등록되어 자동으로 시작됩니다."
