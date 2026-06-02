@@ -2,7 +2,7 @@ import os
 import re
 import asyncio
 
-NOTES_DIR = os.getenv("NOTES_DIR", "/home/koolsg/Documents/Obsidian Vault/My_Notebook")
+NOTES_DIR = os.getenv("NOTES_DIR", "/home/koolsg/Documents/Obsidian Vault/My_Memos")
 
 if not os.path.exists(NOTES_DIR):
     os.makedirs(NOTES_DIR)

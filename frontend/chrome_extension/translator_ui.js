@@ -28,6 +28,7 @@ function populateVoiceList() {
         option.textContent = "사용 가능한 목소리 없음";
         option.value = "";
         voiceSelect.appendChild(option);
+        updateSpeakButtonState();
         return;
     }
     
@@ -72,6 +73,8 @@ function populateVoiceList() {
     if (voiceSelect.selectedIndex === -1 && voiceSelect.options.length > 0) {
         voiceSelect.options[0].selected = true;
     }
+
+    updateSpeakButtonState();
 }
 
 // Chrome 등 비동기 목소리 로드 대응
@@ -188,6 +191,90 @@ function speakTranslationComplete() {
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
     
+    speechSynthesis.speak(utterance);
+}
+
+
+/**
+ * 번역 결과 텍스트가 있을 때 음성 읽기 버튼을 활성화/비활성화합니다.
+ */
+function updateSpeakButtonState() {
+    const speakBtn = document.getElementById("speak-translation-btn");
+    const outputTextEl = document.getElementById("output-text");
+    if (!speakBtn || !outputTextEl) return;
+
+    const text = outputTextEl.innerText.trim();
+    if (text && typeof speechSynthesis !== "undefined" && voices.length > 0) {
+        speakBtn.disabled = false;
+    } else {
+        speakBtn.disabled = true;
+        if (typeof speechSynthesis !== "undefined" && speechSynthesis.speaking) {
+            speechSynthesis.cancel();
+            speakBtn.innerHTML = "🔊 읽어주기";
+            speakBtn.classList.remove("playing");
+        }
+    }
+}
+
+/**
+ * 번역 결과 창에 표시된 번역 텍스트를 선택된 음성으로 읽어줍니다.
+ */
+function speakTranslationContent() {
+    if (typeof speechSynthesis === "undefined") return;
+
+    const outputTextEl = document.getElementById("output-text");
+    const speakBtn = document.getElementById("speak-translation-btn");
+    if (!outputTextEl || !speakBtn) return;
+
+    // 이미 재생 중이면 정지 (토글 기능)
+    if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        speakBtn.innerHTML = "🔊 읽어주기";
+        speakBtn.classList.remove("playing");
+        return;
+    }
+
+    const textToSpeak = outputTextEl.innerText.trim();
+    if (!textToSpeak) {
+        updateStatus("읽어줄 번역 결과가 없습니다.", "error");
+        return;
+    }
+
+    const voiceSelect = document.getElementById("voice-select");
+    const selectedVoiceName = voiceSelect ? voiceSelect.value : null;
+    const selectedVoice = voices.find(v => v.name === selectedVoiceName);
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+    } else {
+        const targetLanguage = document.getElementById("target-language-select")?.value;
+        if (targetLanguage) {
+            utterance.lang = targetLanguage;
+        }
+    }
+
+    utterance.volume = 1.0;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => {
+        speakBtn.innerHTML = "⏹ 멈춤";
+        speakBtn.classList.add("playing");
+    };
+
+    utterance.onend = () => {
+        speakBtn.innerHTML = "🔊 읽어주기";
+        speakBtn.classList.remove("playing");
+    };
+
+    utterance.onerror = (e) => {
+        console.error("번역 읽기 오류:", e);
+        speakBtn.innerHTML = "🔊 읽어주기";
+        speakBtn.classList.remove("playing");
+    };
+
     speechSynthesis.speak(utterance);
 }
 
@@ -574,6 +661,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const voiceCheckbox = document.getElementById("voice-notification-checkbox");
     const voiceSelect = document.getElementById("voice-select");
     const voiceTestBtn = document.getElementById("voice-test-btn");
+    const speakTranslationBtn = document.getElementById("speak-translation-btn");
 
     if (voiceCheckbox && voiceSelect && voiceTestBtn) {
         const savedVoiceEnabled = localStorage.getItem("voice_notification_enabled") !== "false";
@@ -586,6 +674,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
         voiceSelect.addEventListener("change", () => {
             localStorage.setItem("voice_notification_voice", voiceSelect.value);
+            updateSpeakButtonState();
         });
 
         voiceTestBtn.addEventListener("click", () => {
@@ -594,6 +683,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
         updateVoiceUIState();
         populateVoiceList();
+    }
+
+    if (speakTranslationBtn) {
+        speakTranslationBtn.addEventListener("click", () => {
+            speakTranslationContent();
+        });
+        updateSpeakButtonState();
     }
 
     const timestampCheckbox = document.getElementById("timestamp-checkbox");
@@ -921,8 +1017,9 @@ function handleRegularTranslation() {
                         message: '요청하신 번역이 성공적으로 완료되었습니다.'
                     });
                 }
-                // 번역 완료 음성 알림 출력
+                // 번역 완료 음성 알림 출력 및 버튼 활성화
                 speakTranslationComplete();
+                updateSpeakButtonState();
             }, 500);
         })
         .catch(async (error) => {
@@ -1082,8 +1179,9 @@ async function handleStreamTranslation() {
                 message: '요청하신 번역이 성공적으로 완료되었습니다.'
             });
         }
-        // 번역 완료 음성 알림 출력 (스트리밍)
+        // 번역 완료 음성 알림 출력 (스트리밍) 및 버튼 활성화
         speakTranslationComplete();
+        updateSpeakButtonState();
     } catch (error) {
         console.error("스트리밍 번역 오류:", error);
         if (error.name === "AbortError") {

@@ -746,6 +746,48 @@
             color: var(--text-secondary);
             font-size: 13px;
         }
+
+        /* ===== 번역문 음성 읽기(TTS) 버튼 스타일 ===== */
+        .speak-btn {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #06b6d4;
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .speak-btn:hover:not(:disabled) {
+            background: #06b6d4;
+            color: white;
+            border-color: #06b6d4;
+            transform: translateY(-1px);
+        }
+
+        .speak-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        .speak-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: rgba(0, 0, 0, 0.05);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .speak-btn.playing {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
     </style>
 </head>
 
@@ -829,8 +871,9 @@
             </div>
         </div>
         <div class="output-section">
-            <div class="section-label">
-                🔤 번역 결과
+            <div class="section-label" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>🔤 번역 결과</span>
+                <button id="speak-translation-btn" class="speak-btn" type="button" title="번역문 음성으로 읽기" disabled>🔊 읽어주기</button>
             </div>
             <div id="output-text" class="text-area"></div>
             <div id="output-char-counter" class="char-counter">번역 글자: 0</div>
