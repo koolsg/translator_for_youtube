@@ -95,7 +95,10 @@
         </div>
         <div id="modalBody" class="modal-body">
             <i class="fas fa-circle-notch fa-spin loading-spinner"></i>
-            <textarea id="editContent" class="modal-content-input" placeholder="내용을 입력하세요..."></textarea>
+            <div id="modalPreview" class="modal-preview markdown-body" onclick="enterEditMode()" title="클릭하여 편집하기">
+                <!-- 마크다운 렌더링 결과가 출력될 공간 -->
+            </div>
+            <textarea id="editContent" class="modal-content-input" placeholder="내용을 입력하세요..." style="display:none;"></textarea>
         </div>
         <div class="modal-meta-bar">
             <button id="modalPinToggle" class="modal-pin-toggle" onclick="toggleModalPin()">
@@ -108,9 +111,11 @@
         </div>
         <div class="modal-footer">
             <span id="editDate" class="modal-date"></span>
-            <div style="display:flex;gap:0.75rem;">
-                <button class="btn btn-ghost" onclick="closeEditModal()">취소</button>
-                <button id="updateBtn" class="btn btn-primary">수정 완료</button>
+            <div style="display:flex; gap:0.75rem;">
+                <button id="modalEditBtn" class="btn btn-ghost" onclick="enterEditMode()"><i class="fas fa-pen"></i> 편집</button>
+                <button id="modalCancelBtn" class="btn btn-ghost" onclick="exitEditMode()" style="display:none;">취소</button>
+                <button id="updateBtn" class="btn btn-primary" style="display:none;">수정 완료</button>
+                <button id="modalCloseBtn" class="btn btn-primary" onclick="closeEditModal()">닫기</button>
             </div>
         </div>
     </div>
@@ -576,6 +581,35 @@ async function saveNote() {
     } catch(e) { console.error(e); }
 }
 
+let isEditMode = false;
+
+function enterEditMode() {
+    isEditMode = true;
+    document.getElementById('modalPreview').style.display = 'none';
+    document.getElementById('editContent').style.display = 'block';
+    
+    document.getElementById('modalEditBtn').style.display = 'none';
+    document.getElementById('modalCloseBtn').style.display = 'none';
+    document.getElementById('modalCancelBtn').style.display = 'inline-block';
+    document.getElementById('updateBtn').style.display = 'inline-block';
+    
+    document.getElementById('editContent').focus();
+}
+
+function exitEditMode() {
+    isEditMode = false;
+    document.getElementById('modalPreview').style.display = 'block';
+    document.getElementById('editContent').style.display = 'none';
+    
+    document.getElementById('modalEditBtn').style.display = 'inline-block';
+    document.getElementById('modalCloseBtn').style.display = 'inline-block';
+    document.getElementById('modalCancelBtn').style.display = 'none';
+    document.getElementById('updateBtn').style.display = 'none';
+    
+    const raw = document.getElementById('editContent').value;
+    document.getElementById('modalPreview').innerHTML = DOMPurify.sanitize(marked.parse(raw || '*내용이 없습니다.*'));
+}
+
 async function openEditModal(title) {
     const modal = document.getElementById('editModal');
     const body = document.getElementById('modalBody');
@@ -598,6 +632,10 @@ async function openEditModal(title) {
         renderTags('modalTagsWrap', editMeta.tags, makeTagRemover(() => editMeta.tags, (t) => { editMeta.tags = t; }, 'modalTagsWrap'));
         const pinToggle = document.getElementById('modalPinToggle');
         pinToggle.classList.toggle('active', editMeta.pinned);
+        
+        // 뷰어 모드로 초기화 및 렌더링
+        exitEditMode();
+        
         document.getElementById('updateBtn').onclick = () => updateNote(title);
     } catch { closeEditModal(); alert('메모를 불러오지 못했습니다.'); }
     finally { body.classList.remove('loading'); }
@@ -606,7 +644,11 @@ function toggleModalPin() {
     editMeta.pinned = !editMeta.pinned;
     document.getElementById('modalPinToggle').classList.toggle('active', editMeta.pinned);
 }
-function closeEditModal() { document.getElementById('editModal').classList.remove('active'); document.body.style.overflow = ''; }
+function closeEditModal() { 
+    exitEditMode(); 
+    document.getElementById('editModal').classList.remove('active'); 
+    document.body.style.overflow = ''; 
+}
 
 async function updateNote(oldTitle) {
     const title = document.getElementById('editTitle').value.trim();
