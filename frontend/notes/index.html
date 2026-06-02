@@ -345,18 +345,32 @@ function createNewLabelFromModal() {
 }
 
 function onLabelInputFocus(input) {
+    if (!input) return;
     const row = input.closest('.modal-label-item');
-    row.querySelector('.tag-icon').style.display = 'none';
-    row.querySelector('.delete-icon').style.display = 'inline-block';
-    row.querySelector('.save-btn').style.display = 'flex';
+    if (!row) return;
+    
+    const tagIcon = row.querySelector('.tag-icon');
+    const deleteIcon = row.querySelector('.delete-icon');
+    const saveBtn = row.querySelector('.save-btn');
+    
+    if (tagIcon) tagIcon.style.display = 'none';
+    if (deleteIcon) deleteIcon.style.display = 'inline-block';
+    if (saveBtn) saveBtn.style.display = 'flex';
 }
 
 function onLabelInputBlur(input) {
     setTimeout(() => {
+        if (!input || !document.body.contains(input)) return;
         const row = input.closest('.modal-label-item');
-        row.querySelector('.tag-icon').removeAttribute('style');
-        row.querySelector('.delete-icon').removeAttribute('style');
-        row.querySelector('.save-btn').removeAttribute('style');
+        if (!row) return;
+        
+        const tagIcon = row.querySelector('.tag-icon');
+        const deleteIcon = row.querySelector('.delete-icon');
+        const saveBtn = row.querySelector('.save-btn');
+        
+        if (tagIcon) tagIcon.removeAttribute('style');
+        if (deleteIcon) deleteIcon.removeAttribute('style');
+        if (saveBtn) saveBtn.removeAttribute('style');
     }, 200);
 }
 
