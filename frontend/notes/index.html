@@ -142,7 +142,7 @@
 </div>
 
 <script>
-const API = '/api/notes/';
+const API = '/api/notes';
 const COLORS = ['', 'coral', 'peach', 'sand', 'sage', 'fog', 'storm', 'lavender'];
 let allNotes = [];
 let currentView = 'notes'; // 'notes', 'archive', or custom tag string
@@ -452,7 +452,7 @@ function collapseInput() {
 async function fetchNotes(isArchived = false) {
     try {
         document.getElementById('refreshBtn').querySelector('i').classList.add('fa-spin');
-        const res = await fetch(`${API}?archived=${isArchived}`);
+        const res = await fetch(`${API}/?archived=${isArchived}`);
         if (!res.ok) throw new Error();
         allNotes = await res.json();
         renderNotes();
@@ -571,7 +571,7 @@ async function saveNote() {
     const content = document.getElementById('noteContent').value.trim();
     if (!content) { document.getElementById('noteContent').style.border = '1px solid var(--danger)'; setTimeout(() => document.getElementById('noteContent').style.border = 'none', 2000); return; }
     try {
-        const res = await fetch(`${API}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: newNoteMeta.pinned, color: newNoteMeta.color, tags: newNoteMeta.tags }) });
+        const res = await fetch(`${API}/`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ title, content, pinned: newNoteMeta.pinned, color: newNoteMeta.color, tags: newNoteMeta.tags }) });
         if (res.ok) { collapseInput(); loadCurrentView(); }
     } catch(e) { console.error(e); }
 }
