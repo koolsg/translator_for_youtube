@@ -6,11 +6,22 @@ from dotenv import load_dotenv
 
 # --- 환경변수 및 로깅 초기 설정을 가장 먼저 수행합니다 ---
 if getattr(sys, 'frozen', False):
-    base_path = os.path.dirname(sys.executable)
+    # 1. 실행 바이너리와 같은 경로에 외장 .env가 있는 경우 우선 적용 (예: ~/bin/.env)
+    ext_env = os.path.join(os.path.dirname(sys.executable), '.env')
+    # 2. pyinstaller 빌드 시 내장된 번들 .env 적용 (sys._MEIPASS/.env)
+    int_env = os.path.join(sys._MEIPASS, '.env')
+    
+    if os.path.exists(ext_env):
+        dotenv_path = ext_env
+    elif hasattr(sys, '_MEIPASS') and os.path.exists(int_env):
+        dotenv_path = int_env
+    else:
+        dotenv_path = ext_env
 else:
-    base_path = os.path.dirname(os.path.abspath(__file__))
+    # 개발 모드(소스 기동)일 때만 레포지토리 내의 .env 로드
+    dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 
-load_dotenv(dotenv_path=os.path.join(base_path, '.env'))
+load_dotenv(dotenv_path=dotenv_path)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
